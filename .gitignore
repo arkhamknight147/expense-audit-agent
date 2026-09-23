@@ -1,0 +1,21 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Generated data (regenerated from seed; see EVAL_PLAN / ADR G4)
+data/generated/
+evals/results/*.json
+!evals/results/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

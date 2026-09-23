@@ -1,0 +1,93 @@
+# Acme India Pvt Ltd — Travel & Expense policy parameters
+# SINGLE SOURCE OF TRUTH (ADR-009 / P2).
+# - The rules engine reads this file directly.
+# - policy/POLICY.md is GENERATED from this file by scripts/build_policy.py. Never edit POLICY.md by hand.
+# - All values are synthetic assumptions for a fictional company (PRD scenario), approved as P5.
+
+meta:
+  company: Acme India Pvt Ltd
+  document: Travel & Expense Policy
+  policy_version: "1.0"
+  effective_date: "2026-10-01"
+  currency: INR
+  owner: Finance Controller
+
+grades:
+  G1: Individual contributor
+  G2: Manager
+  G3: Senior leader
+
+# City tiers follow the Government of India HRA classification (MoF, 2015 revision).
+# Source: https://www.gconnect.in/orders-in-brief/allowance-orders-in-brief/revised-list-of-classification-of-cities-for-hra-updated-as-on-may-2015.html
+# Spellings normalised. Any city not listed under X or Y is tier Z.
+city_tiers:
+  X: [Ahmedabad, Bengaluru, Chennai, Delhi, Hyderabad, Kolkata, Mumbai, Pune]
+  Y: [Vijayawada, Warangal, Visakhapatnam, Guntur, Nellore, Guwahati, Patna, Chandigarh,
+      Durg-Bhilai Nagar, Raipur, Rajkot, Jamnagar, Bhavnagar, Vadodara, Surat, Faridabad,
+      Gurugram, Srinagar, Jammu, Jamshedpur, Dhanbad, Ranchi, Bokaro Steel City, Belagavi,
+      Hubballi-Dharwad, Mangaluru, Mysuru, Kalaburagi, Kozhikode, Kochi, Thiruvananthapuram,
+      Thrissur, Malappuram, Kannur, Kollam, Gwalior, Indore, Bhopal, Jabalpur, Ujjain, Amravati,
+      Nagpur, Aurangabad, Nashik, Bhiwandi, Solapur, Kolhapur, Vasai-Virar, Malegaon,
+      Nanded-Waghala, Sangli, Cuttack, Bhubaneswar, Rourkela, Amritsar, Jalandhar, Ludhiana,
+      Puducherry, Bikaner, Jaipur, Jodhpur, Kota, Ajmer, Salem, Tiruppur, Coimbatore,
+      Tiruchirappalli, Madurai, Erode, Dehradun, Moradabad, Meerut, Ghaziabad, Aligarh, Agra,
+      Bareilly, Lucknow, Kanpur, Prayagraj, Gorakhpur, Varanasi, Saharanpur, Noida, Firozabad,
+      Jhansi, Asansol, Siliguri, Durgapur]
+
+limits:
+  hotel_per_night:        # HTL-01, by grade then tier
+    G1: {X: 4500, Y: 3500, Z: 2500}
+    G2: {X: 6500, Y: 5000, Z: 3500}
+    G3: {X: 9000, Y: 7000, Z: 5000}
+  meals_per_day:          # MEAL-01
+    G1: 1000
+    G2: 1500
+    G3: 2500
+  local_transport_per_day:  # TRN-01; null = actuals
+    G1: 1500
+    G2: 2500
+    G3: null
+  client_entertainment_per_attendee: 3000   # ENT-01
+  team_meal_per_head: 1000                  # ENT-02
+  connectivity_per_trip: 500                # MISC-01
+  laundry_min_nights: 4                     # HTL-04 (trip longer than 3 nights)
+  business_class_min_flight_hours: 4        # AIR-01 (G3 only)
+  advance_booking_days: 7                   # AIR-02
+  late_night_after_hour: 22                 # TRN-02
+  submission_window_days: 60                # GEN-02
+  self_declaration_max_per_item: 500        # GEN-03
+  self_declaration_max_per_month: 2         # GEN-03
+  cash_single_payment_max: 10000            # GEN-05 (aligned with Income Tax Act s.40A(3))
+  hotel_itc_review_threshold: 7500          # GST-03 (rooms at or below this per night -> tax team review)
+
+non_reimbursable_items: [minibar, spa, salon, personal toiletries, movies, fines and penalties, loyalty or membership fees, gifts for self]
+
+# Clause registry. `check` names the deterministic rules-engine function for clauses
+# that code can decide; clauses without `check` require interpretation or a human.
+clauses:
+  - {id: GEN-01, title: Scope and business purpose}
+  - {id: GEN-02, title: Submission window, check: within_submission_window}
+  - {id: GEN-03, title: Receipts and self-declaration, check: receipt_present_or_valid_self_declaration}
+  - {id: GEN-04, title: Duplicate claims, check: not_duplicate}
+  - {id: GEN-05, title: Cash payments, check: cash_payment_within_limit}
+  - {id: GEN-06, title: Personal expenses, check: no_non_reimbursable_items}
+  - {id: HTL-01, title: Hotel nightly limits, check: hotel_within_limit}
+  - {id: HTL-02, title: Hotel tax invoice, check: hotel_invoice_has_company_gstin}
+  - {id: HTL-03, title: Weekend stays}
+  - {id: HTL-04, title: Laundry, check: laundry_allowed_for_trip_length}
+  - {id: MEAL-01, title: Daily meal limits, check: meals_within_daily_limit}
+  - {id: MEAL-02, title: Itemised meal receipts, check: meal_receipt_itemised}
+  - {id: MEAL-03, title: Alcohol on routine meals}
+  - {id: ENT-01, title: Client entertainment}
+  - {id: ENT-02, title: Team meals}
+  - {id: ENT-03, title: Alcohol during client entertainment}
+  - {id: TRN-01, title: Local transport daily limits, check: local_transport_within_limit}
+  - {id: TRN-02, title: Premium cab categories}
+  - {id: AIR-01, title: Class of air travel, check: air_class_permitted}
+  - {id: AIR-02, title: Advance booking}
+  - {id: GST-01, title: GSTIN on invoices}
+  - {id: GST-02, title: Blocked input tax credit}
+  - {id: GST-03, title: Hotel rooms at or below the review threshold}
+  - {id: MISC-01, title: Connectivity, check: connectivity_within_limit}
+  - {id: MISC-02, title: Incidental expenses}
+  - {id: EXC-01, title: Policy exceptions}

@@ -1,0 +1,132 @@
+<!-- GENERATED FILE. Do not edit by hand. Source: policy/limits.yaml; build: python scripts/build_policy.py -->
+# {{ meta.company }} — {{ meta.document }}
+
+| Field | Value |
+|---|---|
+| Version | {{ meta.policy_version }} |
+| Effective date | {{ meta.effective_date }} |
+| Currency | {{ meta.currency }} |
+| Policy owner | {{ meta.owner }} |
+
+> This is a fictional policy for a fictional company, created for a portfolio project. It is not tax or legal advice.
+
+## Definitions
+
+- **Grade:** {% for g, d in grades.items() %}{{ g }} = {{ d }}{% if not loop.last %}; {% endif %}{% endfor %}.
+- **City tier:** X cities are {{ city_tiers.X | join(", ") }}. Y cities are listed in Annex A. All other cities are tier Z.
+- **Trip:** continuous travel away from the employee's base location, from departure to return.
+
+## 1. General
+
+### GEN-01 — {{ t["GEN-01"] }}
+This policy applies to all employees travelling or incurring expenses on company business. Every claim must state its business purpose. Expenses are reimbursed in {{ meta.currency }} at actual cost, up to the limits in this policy.
+
+### GEN-02 — {{ t["GEN-02"] }}
+Claims must be submitted within {{ limits.submission_window_days }} days of the expense date. Claims submitted later are not reimbursable.
+
+### GEN-03 — {{ t["GEN-03"] }}
+Every expense needs an original receipt or invoice. If a receipt is lost, the employee may submit a self-declaration for items up to ₹{{ "{:,}".format(limits.self_declaration_max_per_item) }} each, and no more than {{ limits.self_declaration_max_per_month }} self-declarations per calendar month.
+
+### GEN-04 — {{ t["GEN-04"] }}
+An expense may be claimed only once. A claim with the same vendor, date and amount as a previously submitted claim is a duplicate and is not reimbursable.
+
+### GEN-05 — {{ t["GEN-05"] }}
+No single payment made in cash may exceed ₹{{ "{:,}".format(limits.cash_single_payment_max) }}. Cash payments above this amount are not reimbursable. Use a corporate card or digital payment instead.
+
+### GEN-06 — {{ t["GEN-06"] }}
+The following are never reimbursable: {{ non_reimbursable_items | join(", ") }}.
+
+## 2. Hotel accommodation
+
+### HTL-01 — {{ t["HTL-01"] }}
+The maximum room rate per night, excluding taxes, is:
+
+| Grade | X city | Y city | Z city |
+|---|---|---|---|
+{% for g, row in limits.hotel_per_night.items() %}| {{ g }} | ₹{{ "{:,}".format(row.X) }} | ₹{{ "{:,}".format(row.Y) }} | ₹{{ "{:,}".format(row.Z) }} |
+{% endfor %}
+
+### HTL-02 — {{ t["HTL-02"] }}
+Hotel bills must be a GST tax invoice issued in the name of {{ meta.company }} and showing the company GSTIN. Claims without a compliant invoice will be returned to the employee for correction.
+
+### HTL-03 — {{ t["HTL-03"] }}
+Hotel stays over a weekend are reimbursable when staying is more economical for the company than returning to base, or when business needs require the employee to remain at the location.
+
+### HTL-04 — {{ t["HTL-04"] }}
+Laundry is reimbursable only on trips of {{ limits.laundry_min_nights }} nights or more.
+
+## 3. Meals
+
+### MEAL-01 — {{ t["MEAL-01"] }}
+Meals while travelling are reimbursed at actual cost up to a daily limit:
+
+| Grade | Per day |
+|---|---|
+{% for g, v in limits.meals_per_day.items() %}| {{ g }} | ₹{{ "{:,}".format(v) }} |
+{% endfor %}
+
+### MEAL-02 — {{ t["MEAL-02"] }}
+Meal receipts must be itemised. A receipt showing only a total amount will be returned to the employee.
+
+### MEAL-03 — {{ t["MEAL-03"] }}
+Alcohol is not reimbursable as part of routine meals. See ENT-03 for client entertainment.
+
+## 4. Entertainment
+
+### ENT-01 — {{ t["ENT-01"] }}
+Meals and hospitality for clients or prospective clients are reimbursable up to ₹{{ "{:,}".format(limits.client_entertainment_per_attendee) }} per attendee, where the purpose is to develop or maintain a business relationship. The claim must list all attendees, their organisations, and the business purpose.
+
+### ENT-02 — {{ t["ENT-02"] }}
+Team meals are reimbursable up to ₹{{ "{:,}".format(limits.team_meal_per_head) }} per head only for team celebrations approved in advance by the team's manager.
+
+### ENT-03 — {{ t["ENT-03"] }}
+Alcohol may be reimbursed as part of client entertainment when consumption is reasonable and appropriate to the occasion.
+
+## 5. Local transport
+
+### TRN-01 — {{ t["TRN-01"] }}
+Local transport (cabs, auto-rickshaws, metro) is reimbursed at actual cost up to a daily limit:
+
+| Grade | Per day |
+|---|---|
+{% for g, v in limits.local_transport_per_day.items() %}| {{ g }} | {% if v is none %}Actual cost{% else %}₹{{ "{:,}".format(v) }}{% endif %} |
+{% endfor %}
+
+### TRN-02 — {{ t["TRN-02"] }}
+Premium cab categories (e.g., sedan or SUV tiers) may be used when travelling after {{ limits.late_night_after_hour }}:00, when accompanying clients, or when otherwise necessary for business.
+
+## 6. Air travel
+
+### AIR-01 — {{ t["AIR-01"] }}
+All grades travel in economy class. G3 employees may travel in business class on flights with a scheduled duration of more than {{ limits.business_class_min_flight_hours }} hours.
+
+### AIR-02 — {{ t["AIR-02"] }}
+Flights should be booked at least {{ limits.advance_booking_days }} days in advance wherever practicable. Later bookings must include a reason.
+
+## 7. GST and invoices
+
+### GST-01 — {{ t["GST-01"] }}
+Hotel and air travel invoices should carry the company GSTIN so that the company can evaluate input tax credit (ITC) eligibility.
+
+### GST-02 — {{ t["GST-02"] }}
+Input tax credit is not claimed on food and beverages, outdoor catering, or travel benefits extended to employees on vacation, which are blocked credits under Section 17(5) of the CGST Act, 2017.
+
+### GST-03 — {{ t["GST-03"] }}
+Hotel invoices where the room rate is ₹{{ "{:,}".format(limits.hotel_itc_review_threshold) }} or less per night are tagged for tax team review before any input tax credit is claimed.
+
+## 8. Other expenses
+
+### MISC-01 — {{ t["MISC-01"] }}
+Mobile data or internet purchased during a trip is reimbursable up to ₹{{ "{:,}".format(limits.connectivity_per_trip) }} per trip.
+
+### MISC-02 — {{ t["MISC-02"] }}
+Other incidental expenses reasonably necessary for business travel may be reimbursed with a short justification.
+
+## 9. Exceptions
+
+### EXC-01 — {{ t["EXC-01"] }}
+Any expense outside this policy requires written approval, before the expense is incurred, from a G3 leader and the {{ meta.owner }}. Approved exceptions must be attached to the claim.
+
+## Annex A — Y cities
+
+{{ city_tiers.Y | join(", ") }}.
