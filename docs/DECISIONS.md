@@ -13,6 +13,7 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-007 | Success metrics framework | Accepted | 2026-09-23 |
 | ADR-008 | Eval plan design | Accepted | 2026-09-23 |
 | ADR-009 | Policy corpus design | Accepted | 2026-09-23 |
+| ADR-010 | Golden set generation | Accepted | 2026-09-24 |
 
 ---
 
@@ -87,3 +88,11 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Rejected alternative:** Hand-written policy with limits duplicated in code. Rejected because of drift risk.
 - **Revisit when:** The tax position on ITC for rooms ≤₹7,500 is clarified by an authoritative source (CBIC circular or ruling).
 - **Ref:** `policy/limits.yaml`, `policy/POLICY.md`, `evals/labelling/GREY_CLAUSES.md`.
+
+## ADR-010: Golden set generation
+
+- **Decision:** (G0) Repo set up before generator code. (G1) Decisions labelled per claim, violations per line item. (G2) Receipts drawn with Pillow in 7 formats with seeded scan noise. (G3) Every receipt watermarked "SYNTHETIC SAMPLE - NOT A VALID INVOICE"; vendors and GSTINs fictitious. (G4) Images regenerated from a fixed seed and git-ignored; inputs (`claims.jsonl`, `ledger.jsonl`) and ground truth (`labels.jsonl`) in separate files. (G5) Stratified, seeded 70/30 split; test IDs locked. (G6) PM labels ~40 grey cases in a CSV. (G7) CORD receipts used for extraction only. (G8) Code-labelled slices first, PM labelling in parallel, CORD last.
+- **Why:** Ground truth is assigned by construction, never by the rules engine under test. Watermarking prevents misuse of realistic synthetic receipts. Separating inputs from labels prevents leakage into the agent.
+- **Rejected alternative:** Commit the images. Rejected because they are ~40 MB and fully reproducible from the seed.
+- **Revisit when:** A real-world receipt source with a clear licence becomes available.
+- **Ref:** `evals/generator/`, `scripts/generate_golden_set.py`, `evals/golden/MANIFEST.md`.
