@@ -195,7 +195,7 @@ How much the agent may do on its own is a **design decision, separate from model
 | A5 | Partial approval (reimburse up to the cap) | Agent recommends, human decides (MVP) | Affects employee money; candidate for later autonomy once evals support it |
 | A6 | Reject claim | **Never automated** | High harm; human keeps final control [S17] |
 | A7 | Anomaly (suspected AI-generated or altered receipt, cross-employee duplicate) | Flag labelled "anomaly", never "fraud"; **visible to the auditor only, not the manager** | Protects employees from unfair accusation; the flag is sensitive personal data [S9] |
-| A8 | Ambiguous policy interpretation | Agent recommends with policy citations, human decides | Judgement call where errors are costly |
+| A8 | Ambiguous policy interpretation | Agent recommends with policy citations, human decides. A **unanimous, validly cited "compliant"** (3 of 3 samples) is not treated as ambiguous and may go through the auto-approve gates (ADR-020) | Judgement call where errors are costly |
 | A9 | GST ITC eligibility tag | Automatic tag; tax team reviews in batches | Reversible before return filing |
 | A10 | Policy exceptions (pre-approved overage) | Human only | A business decision, not a policy check |
 | A11 | Payment execution | **Out of scope; the agent has no payment tool permission** | Least privilege |

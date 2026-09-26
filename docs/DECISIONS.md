@@ -23,6 +23,7 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-017 | Extraction on Claude Sonnet 5; E2 missed at extraction stage (amends ADR-013) | Accepted | 2026-09-26 |
 | ADR-018 | Rules engine design (R1–R6) and three corrections found by it | Accepted | 2026-09-27 |
 | ADR-019 | Anomaly checks (N1–N5) | Accepted | 2026-09-27 |
+| ADR-020 | Clause interpretation (I1–I5); unanimous 'compliant' may auto-approve (I4b) | Accepted | 2026-09-27 |
 
 ---
 
@@ -191,3 +192,11 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Result (dev, ground-truth evidence):** 0/294 false alarms on clean claims; 0/28 injection false alarms on legitimate grey-case justifications (e.g. "approved verbally by manager"); cross-employee duplicates 4/4; GSTIN-state mismatches 3/3; justification-channel injections 7/7. Tampered totals, tax-rate and receipt-text injections need real extraction (`run_anomaly_eval.py --real`).
 - **Known limitation, disclosed:** the injection patterns were written after seeing the red-team set, so Q9 on that set is optimistic. Phase 5 (5.2) adds a held-out, paraphrased red-team set written without looking at the detector. The code gates remain the backstop: every red-team claim also carries a hard violation.
 - **Ref:** `src/expense_audit/anomaly.py`, `evals/harness/anomaly_eval.py`, `tests/test_anomaly.py`.
+
+## ADR-020: Clause interpretation (I1–I5); a unanimous "compliant" may auto-approve (I4b)
+
+- **Decision:** `src/expense_audit/interpret.py` calls Sonnet only for lines the rules marked `needs_judgement` (I1), with structured facts (no employee names) and the exact text of one clause looked up by ID; employee-written text is fenced as untrusted `<employee_text>`. Output is a flat, all-required schema; code verifies `cited_text` is a verbatim quote from the clause, retries once, else the sample counts as `unclear` (I2). Three samples; any disagreement → `unclear` (I3). Results cached by prompt, model and inputs.
+- **I4 resolution (PM decision: option b):** Autonomy item A8 ("ambiguous interpretation → human") and the labelling rule ("compliant + under cap → auto-approve") conflicted. Resolution: a **unanimous, validly cited `compliant`** is treated as not ambiguous and may pass through the normal auto-approve gates (G1–G6, including the ₹5,000 cap). Split votes and `unclear` go to a human. A8 in PRD §3.3 is read accordingly.
+- **Risk accepted:** the model can be confidently wrong; this is measured as "false auto-approvals" on the judgement slice (I5), which feeds Q1.
+- **Plumbing check:** a dry run with an always-"compliant" fake model shows the eval catching 10 false auto-approvals on the 28 dev grey cases, i.e. the harness detects exactly the failure mode I4(b) risks.
+- **Ref:** `src/expense_audit/interpret.py`, `evals/harness/interpretation_eval.py`, `tests/test_interpret.py`.

@@ -2,7 +2,7 @@
 
 ## Current status
 - **Phase:** 2 complete → starting Phase 3 (MVP build)
-- **Next task:** T3.3 real-extraction anomaly run (PM, ~₹50) → T3.4 Clause lookup + interpretation
+- **Next task:** PM runs: anomaly `--real` (~₹50) + interpretation eval (~₹40–60) → T3.5 Gates + graph
 - **Known issues:** HTL-03 judgement cases check out on Sunday while some justifications mention Monday (generator artefact, accepted as is). CORD extraction slice not yet added (G8).
 
 ## Phase 0 — Framing ✅
@@ -26,7 +26,7 @@
 - [x] T3.1 Extraction — 200 dev receipts on Sonnet: Q5 99.8%, Q7 99.5% (ADR-015/016/017): `schemas.py` + `extract.py` (Claude Haiku 4.5, schema, retries, validation log) → Q5, Q7 on dev
 - [x] T3.2 Rules engine — on ground-truth evidence (dev): Q2 84/84, 0/294 false flags on clean claims, gaps 28/28 (ADR-018)
 - [~] T3.3 Anomaly checks (ADR-019): ground-truth eval done (0 false alarms); real-extraction run pending
-- [ ] T3.4 Clause lookup + interpretation: `interpret.py` (Claude Sonnet 5 ×3, cited clause IDs)
+- [~] T3.4 Clause lookup + interpretation (ADR-020): built, dry run OK; real dev run pending
 - [ ] T3.5 Gates + graph: `decide.py`, `graph.py` with `interrupt()`, `store.py` audit log
 
 ## Phase 4 — Evals

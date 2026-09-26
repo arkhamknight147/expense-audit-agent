@@ -69,6 +69,7 @@ class LineEvidence:
     taxes: list[dict] = field(default_factory=list)  # {"label", "rate_pct", "amount"}
     other_text: list[str] = field(default_factory=list)
     justification: Optional[str] = None
+    description: Optional[str] = None  # employee-written line description (untrusted)
 
 
 @dataclass
@@ -96,7 +97,8 @@ def evidence_from_extraction(claim_line: dict, extraction: Optional[dict]) -> Li
     ev = LineEvidence(line_id=claim_line["line_id"], claim_category=claim_line["category"],
                       has_receipt=bool(claim_line.get("receipt")), self_declared=bool(claim_line.get("self_declared")),
                       attendees=list(claim_line.get("attendees") or []),
-                      claimed_amount=claim_line.get("amount_claimed"), justification=claim_line.get("justification"))
+                      claimed_amount=claim_line.get("amount_claimed"), justification=claim_line.get("justification"),
+                      description=claim_line.get("description"))
     if not ev.has_receipt:
         ev.total = claim_line.get("amount_claimed")
         ev.invoice_date = claim_line.get("expense_date")

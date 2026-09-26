@@ -26,7 +26,8 @@ def evidence_from_truth(claim_line: dict, truth: dict, destination: str | None =
     ev = LineEvidence(line_id=claim_line["line_id"], claim_category=claim_line["category"],
                       has_receipt=bool(claim_line.get("receipt")), self_declared=bool(claim_line.get("self_declared")),
                       attendees=list(claim_line.get("attendees") or []),
-                      claimed_amount=claim_line.get("amount_claimed"), justification=claim_line.get("justification"))
+                      claimed_amount=claim_line.get("amount_claimed"), justification=claim_line.get("justification"),
+                      description=claim_line.get("description"))
     if not ev.has_receipt:
         ev.total, ev.invoice_date, ev.payment_mode = claim_line["amount_claimed"], claim_line["expense_date"], claim_line["payment_mode"]
         return ev
