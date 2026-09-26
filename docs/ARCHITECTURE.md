@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | v1.0 |
-| Status | **Approved** (A1–A10, 2026-09-26). Decision record: `docs/DECISIONS.md` ADR-012 |
+| Status | **Approved** (A1–A10, 2026-09-26; A3 revised 2026-09-26). Decision records: `docs/DECISIONS.md` ADR-012, ADR-013 |
 | Implements | PRD §3 Autonomy policy, §4 Success metrics; EVAL_PLAN |
 
 ## 1. Design principles
@@ -20,7 +20,7 @@
 Claim (form + receipt images)
   │
   ▼
-[1] EXTRACT ─────── per receipt: image → Pydantic schema (Gemini Flash-Lite), ≤2 retries,
+[1] EXTRACT ─────── per receipt: image → Pydantic schema (Claude Haiku 4.5), ≤2 retries,
   │                 validation failures logged; low-confidence fields flagged
   ▼
 [2] HARD RULES ──── code, one function per `check` in limits.yaml (HTL-01, MEAL-01, GEN-05 …)
@@ -32,7 +32,7 @@ Claim (form + receipt images)
 [4] CLAUSE LOOKUP ─ category → candidate clause IDs → exact clause text (by ID, no vector DB)
   │
   ▼
-[5] INTERPRET ───── only for lines needing judgement: Gemini Flash ×3 samples;
+[5] INTERPRET ───── only for lines needing judgement: Claude Sonnet 5 ×3 samples;
   │                 agreement across samples = confidence (G4); must cite clause IDs
   ▼
 [6] DECIDE ──────── code: gates G1–G6 + autonomy policy A1–A11
@@ -49,9 +49,9 @@ Step 3 and step 6 run on every claim, whatever the LLM says, so a fooled LLM can
 | # | Component | Technology | Notes |
 |---|---|---|---|
 | A1 | Orchestration | LangGraph `StateGraph` | Human review via `interrupt()` + checkpointer; resume with `Command(resume=…)`. Pre-interrupt side effects must be idempotent (the node re-runs on resume). |
-| A3 | Extraction model | Gemini Flash-Lite (vision + JSON schema) | Structured output validated again by Pydantic |
-| A3 | Interpretation model | Gemini Flash, 3 samples | Only for grey/ambiguous lines (cost control) |
-| A4 | Eval judge (Q6) | GPT-OSS-120B via Groq (free tier) | Different model family from the agent and from the labelling LLM |
+| A3 | Extraction model | Claude Haiku 4.5 (vision + structured outputs) | Structured output validated again by Pydantic (ADR-013) |
+| A3 | Interpretation model | Claude Sonnet 5, 3 samples | Only for grey/ambiguous lines (cost control) (ADR-013) |
+| A4 | Eval judge (Q6) | GPT-OSS-120B via Groq (free tier) | Different model family from the agent (Claude) and from the labelling LLM (Gemini) |
 | A5 | Policy lookup | `limits.yaml` clause registry + `POLICY.md` parsed by clause ID | No embeddings; citation validated against real clause text |
 | A6 | Rules engine | Pure Python + pytest | Q2 target 100% |
 | A7 | Storage | SQLite | Claim queue, append-only `audit_log`, LangGraph checkpoints |
@@ -91,12 +91,12 @@ tests/             unit tests
 
 ## 6. Security & privacy
 
-- Secrets only in `.env` (git-ignored) and in the Streamlit Cloud secrets store; `.env.example` lists names only.
+- Secrets only in `.env` (git-ignored) and in the Streamlit Cloud secrets store; `.env.example` lists names only. Three layers stop a key reaching GitHub: `.gitignore`, a local pre-commit secret scan (`scripts/check_secrets.py`), and GitHub push protection (ADR-014).
 - All data is synthetic. If real receipts were ever used, receipts would be personal data under the DPDP regime: purpose limitation, access control (anomaly flags visible to auditors only, ADR-003) and breach handling would apply.
 - Least privilege: the agent has no payment or approval tool; API keys scoped per provider.
 
 ## 7. Known limits
 
-- Free-tier rate limits (Gemini, Groq) cap eval throughput; full runs may need batching or a small paid budget.
+- Anthropic API usage is paid from prepaid credits; Groq free-tier limits cap judge throughput. Full eval runs may need batching.
 - Streamlit Community Cloud apps sleep when idle; the first load after sleep is slow.
 - The deterministic clause lookup relies on correct category extraction; category errors are measured by Q5.

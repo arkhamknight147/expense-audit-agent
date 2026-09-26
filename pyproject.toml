@@ -9,7 +9,7 @@ dependencies = [
   "pillow>=10.1",
   "pydantic>=2.0",
   "python-dotenv",
-  "google-genai",
+  "anthropic",
   "langgraph",
   "langgraph-checkpoint-sqlite",
   "langfuse",

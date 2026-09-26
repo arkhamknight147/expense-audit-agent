@@ -15,7 +15,9 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-009 | Policy corpus design | Accepted | 2026-09-23 |
 | ADR-010 | Golden set generation | Accepted | 2026-09-24 |
 | ADR-011 | LLM-assisted judgement labelling (supersedes ADR-008 V3 method) | Accepted | 2026-09-26 |
-| ADR-012 | System architecture (A1–A10) | Accepted | 2026-09-26 |
+| ADR-012 | System architecture (A1–A10) | Accepted; A3 superseded by ADR-013 | 2026-09-26 |
+| ADR-013 | Agent models: Anthropic Claude (supersedes ADR-012 A3) | Accepted | 2026-09-26 |
+| ADR-014 | Secret management: three layers of protection | Accepted | 2026-09-26 |
 
 ---
 
@@ -115,3 +117,20 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Rejected alternatives:** LLM makes the final decision (rejected: unsafe, untestable). Vector DB retrieval (deferred: optional later experiment against the same evals). Hugging Face Spaces (rejected: hosting cost).
 - **Revisit when:** The policy corpus grows beyond what fits comfortably in context (reconsider A5), or free-tier limits block eval runs (reconsider A3/A4 providers).
 - **Ref:** `docs/ARCHITECTURE.md`.
+
+## ADR-013: Agent models on Anthropic Claude
+
+- **Decision:** Replace Gemini with Anthropic Claude for the agent. Receipt extraction uses Claude Haiku 4.5 (vision + structured outputs); grey-clause interpretation uses Claude Sonnet 5 with 3 samples. The Q6 judge stays on GPT-OSS-120B via Groq (ADR-012 A4).
+- **Why:** The PM already holds prepaid Anthropic credits, so there is no new spend and no free-tier rate limits. Side benefit: the agent (Claude), the labelling LLM (Gemini, ADR-011) and the judge (GPT-OSS) are now three different model families, which reduces the model-vs-model circularity risk.
+- **Trade-off:** Higher per-token prices than Gemini Flash. Estimated LLM cost ≈ ₹0.5–1.5 per claim, so E2 (≤₹1.00) becomes tight; it is re-checked after the Phase 4 baseline (ADR-007 M5).
+- **Rejected alternative:** Keep Gemini on the free tier. Rejected because of rate limits and because the PM prefers the existing Anthropic credits.
+- **Revisit when:** E2 is missed after routing, or a cheaper model meets Q1–Q7.
+- **Ref:** `.env.example`, `src/expense_audit/config.py`, `docs/ARCHITECTURE.md` §3, PRD §4.1.
+
+## ADR-014: Secret management — three layers of protection
+
+- **Decision:** API keys live only in a local `.env` file. Three independent layers stop a key reaching the public repo: (1) `.gitignore` excludes `.env`; (2) a dependency-free pre-commit hook (`scripts/check_secrets.py`) blocks commits containing key patterns or a `.env` file; (3) GitHub secret scanning with push protection rejects pushes containing known secret formats. Provider-side: one named key per project, a spend limit on the Anthropic workspace, and rotation if a leak is ever suspected.
+- **Why:** The repo is public; a leaked key means direct financial loss. Each layer covers a different failure (forgotten ignore rule, key pasted into code, hook bypassed).
+- **Rejected alternative:** Rely on `.gitignore` alone. Rejected because it does not catch keys pasted into source files.
+- **Revisit when:** The project adds CI secrets (use GitHub Actions encrypted secrets) or deploys the demo (use Streamlit Cloud secrets).
+- **Ref:** `.gitignore`, `.githooks/pre-commit`, `scripts/check_secrets.py`.

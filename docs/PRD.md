@@ -233,7 +233,7 @@ Shadow mode (the agent suggests, humans decide, outcomes are compared) → Assis
 
 - **Offline vs online.** Offline metrics are measured in this project on a labelled golden set of synthetic claims. Online metrics exist only in a real pilot. **The portfolio quotes offline numbers only.**
 - **Every metric must drive a decision or block a release.** Q1–Q9 block releases through an automated eval check; H1–H5 trigger ADR revisits.
-- **Human review time, not token cost, is the dominant unit cost.** At current Gemini prices [S17], LLM cost is roughly ₹0.4–1.2 per claim (assuming ~10k input and ~1.5k output tokens, ₹88/USD). A human review costs ~₹30 per escalated claim (assuming ~3 min at ₹600/hour loaded). The escalation rate is the main economic lever.
+- **Human review time, not token cost, is the dominant unit cost.** At current Anthropic prices [S17] (Haiku 4.5 $1/$5, Sonnet 5 $2/$10 per 1M input/output tokens), LLM cost is roughly ₹0.5–1.5 per claim (assuming Haiku extraction on every receipt, Sonnet ×3 only on the ~15% of claims needing judgement, ₹88/USD). A human review costs ~₹30 per escalated claim (assuming ~3 min at ₹600/hour loaded). The escalation rate is the main economic lever.
 
 ### 4.2 North Star (online)
 
@@ -258,7 +258,7 @@ Shadow mode (the agent suggests, humans decide, outcomes are compared) → Assis
 | # | Metric | Target |
 |---|---|---|
 | E1 | Clean claims cleared with no human involvement | ≥80% |
-| E2 | LLM cost per claim | ≤₹1.00 average; routing ≥30% cheaper than an all-Flash baseline, with Q1–Q6 within 1 percentage point |
+| E2 | LLM cost per claim | ≤₹1.00 average; routing ≥30% cheaper than an all-Sonnet baseline, with Q1–Q6 within 1 percentage point |
 | E3 | Total cost per claim (LLM + human minutes × assumed rate) | Reported against an all-human-review baseline |
 | E4 | p95 latency per claim | ≤20 seconds |
 
@@ -321,7 +321,7 @@ Shadow mode (the agent suggests, humans decide, outcomes are compared) → Assis
 | S14 | Xiong et al., *Can LLMs Express Their Uncertainty?* (2023) | https://arxiv.org/abs/2306.13063 |
 | S15 | Parasuraman & Manzey, *Complacency and Bias in Human Use of Automation* (Human Factors, 2010) | https://journals.sagepub.com/doi/10.1177/0018720810376055 |
 | S16 | MeitY, *India AI Governance Guidelines* (Nov 2025) | https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/nov/doc2025115685601.pdf |
-| S17 | Google, *Gemini Developer API pricing* (accessed 2026-09-23) | https://ai.google.dev/gemini-api/docs/pricing |
+| S17 | Anthropic, *Models overview & pricing* (accessed 2026-09-26; replaces Gemini pricing per ADR-013) | https://platform.claude.com/docs/en/models/overview |
 | S18 | Statology, *A Concise Guide to the Statistical Rule of Three* | https://www.statology.org/a-concise-guide-to-the-statistical-rule-of-three/ |
 | S19 | AHRQ PSNet, *Alert Fatigue* (primer) | https://psnet.ahrq.gov/primer/alert-fatigue |
 | S20 | Es et al., *RAGAS: Automated Evaluation of Retrieval Augmented Generation* (2023) | https://arxiv.org/abs/2309.15217 |

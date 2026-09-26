@@ -51,7 +51,7 @@
 
 - **Label schema (per claim):** expected decision (`auto_approve` / `return_to_employee` / `escalate`), violated rule IDs, policy clause IDs, key fields (amount, date, vendor, GSTIN, category), GST ITC tag, anomaly flag.
 - **Labelling guide:** one page, written before labelling starts, with a worked example per slice.
-- **Judgement slice:** the PM wrote one interpretation rule per grey clause; an LLM (Gemini Pro, a different model from the agent under test) applied those rules to the 40 cases and flagged low-confidence ones; the PM reviewed and owns the final labels. Disclosure: *rules by PM, applied by an LLM, PM-reviewed* (ADR-011). 10% re-labelled by the PM one week later to check consistency; disagreements are resolved and the guide updated.
+- **Judgement slice:** the PM wrote one interpretation rule per grey clause; an LLM (Gemini Pro, a different model family from the agent, which runs on Claude) applied those rules to the 40 cases and flagged low-confidence ones; the PM reviewed and owns the final labels. Disclosure: *rules by PM, applied by an LLM, PM-reviewed* (ADR-011). 10% re-labelled by the PM one week later to check consistency; disagreements are resolved and the guide updated.
 - **Format check:** `python scripts/validate_judgement_labels.py` validates allowed values and the mechanical decision rules (not the verdicts).
 
 ## 5. LLM-as-judge (Q6 only)

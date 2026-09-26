@@ -2,7 +2,7 @@
 
 ## Current status
 - **Phase:** 2 complete → starting Phase 3 (MVP build)
-- **Next task:** T3.1 Receipt extraction
+- **Next task:** T3.1 smoke run (PM runs locally) → full dev run → T3.2 Rules engine
 - **Known issues:** HTL-03 judgement cases check out on Sunday while some justifications mention Monday (generator artefact, accepted as is). CORD extraction slice not yet added (G8).
 
 ## Phase 0 — Framing ✅
@@ -23,10 +23,10 @@
 - [x] 2.2 Repo scaffold: pyproject, AGENTS.md, TASKS.md, config, policy module + tests
 
 ## Phase 3 — MVP (thin end-to-end first)
-- [ ] T3.1 Extraction: `schemas.py` + `extract.py` (Flash-Lite, schema, retries, validation log) → Q5, Q7 on dev
+- [~] T3.1 Extraction (code + 15 unit tests done; awaiting smoke & dev runs): `schemas.py` + `extract.py` (Claude Haiku 4.5, schema, retries, validation log) → Q5, Q7 on dev
 - [ ] T3.2 Rules engine: `rules.py`, one function per `check` → Q2 = 100% on dev
 - [ ] T3.3 Anomaly checks: `anomaly.py` (GST maths, GSTIN state, ledger duplicates, injection signal)
-- [ ] T3.4 Clause lookup + interpretation: `interpret.py` (Flash ×3, cited clause IDs)
+- [ ] T3.4 Clause lookup + interpretation: `interpret.py` (Claude Sonnet 5 ×3, cited clause IDs)
 - [ ] T3.5 Gates + graph: `decide.py`, `graph.py` with `interrupt()`, `store.py` audit log
 
 ## Phase 4 — Evals

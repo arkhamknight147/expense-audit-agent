@@ -13,6 +13,8 @@ venv/
 # Generated data (regenerated from seed; see EVAL_PLAN / ADR G4)
 data/generated/
 evals/results/*.json
+evals/results/*.jsonl
+evals/results/cache/
 !evals/results/.gitkeep
 
 # OS / editor
