@@ -64,7 +64,7 @@ Step 3 and step 6 run on every claim, whatever the LLM says, so a fooled LLM can
 | Object | Key fields |
 |---|---|
 | `ExtractedReceipt` | vendor, invoice_no, invoice_date, total, subtotal, taxes[], vendor_gstin, bill_to_gstin, category, line items[], payment_mode, field_confidence{} |
-| `RuleResult` | clause_id, line_id, passed, detail |
+| `RuleResult` | clause_id, line_id, status (pass / fail / gap / cannot_evaluate / needs_judgement / not_applicable), detail, check |
 | `AnomalySignal` | type (tampered_amount, duplicate, gst_math, gstin_state, prompt_injection), line_id, evidence |
 | `Interpretation` | clause_id, verdict (compliant / non_compliant / unclear), cited_text, rationale, sample_agreement |
 | `Decision` | decision, gate results G1–G6, reasons[], clause_ids[], itc_tags{}, model/prompt versions |

@@ -11,6 +11,7 @@ meta:
   effective_date: "2026-10-01"
   currency: INR
   owner: Finance Controller
+  company_gstin: "29ZZAXA2026M1ZG"   # fictitious, checksum-valid (ADR-016); used by HTL-02
 
 grades:
   G1: Individual contributor
@@ -62,8 +63,9 @@ limits:
 
 non_reimbursable_items: [minibar, spa, salon, personal toiletries, movies, fines and penalties, loyalty or membership fees, gifts for self]
 
-# Clause registry. `check` names the deterministic rules-engine function for clauses
-# that code can decide; clauses without `check` require interpretation or a human.
+# Clause registry. `check` names the deterministic rules-engine function (src/expense_audit/rules.py).
+# For grey clauses the check covers only the objective part (e.g. a numeric cap) and returns
+# `needs_judgement` for the rest (ADR-018). Clauses without `check` need interpretation or a human.
 clauses:
   - {id: GEN-01, title: Scope and business purpose}
   - {id: GEN-02, title: Submission window, check: within_submission_window}
@@ -73,18 +75,18 @@ clauses:
   - {id: GEN-06, title: Personal expenses, check: no_non_reimbursable_items}
   - {id: HTL-01, title: Hotel nightly limits, check: hotel_within_limit}
   - {id: HTL-02, title: Hotel tax invoice, check: hotel_invoice_has_company_gstin}
-  - {id: HTL-03, title: Weekend stays}
+  - {id: HTL-03, title: Weekend stays, check: weekend_stay_screen}
   - {id: HTL-04, title: Laundry, check: laundry_allowed_for_trip_length}
   - {id: MEAL-01, title: Daily meal limits, check: meals_within_daily_limit}
   - {id: MEAL-02, title: Itemised meal receipts, check: meal_receipt_itemised}
-  - {id: MEAL-03, title: Alcohol on routine meals}
-  - {id: ENT-01, title: Client entertainment}
-  - {id: ENT-02, title: Team meals}
+  - {id: MEAL-03, title: Alcohol on routine meals, check: no_alcohol_on_routine_meals}
+  - {id: ENT-01, title: Client entertainment, check: client_entertainment_within_cap}
+  - {id: ENT-02, title: Team meals, check: team_meal_within_cap}
   - {id: ENT-03, title: Alcohol during client entertainment}
   - {id: TRN-01, title: Local transport daily limits, check: local_transport_within_limit}
-  - {id: TRN-02, title: Premium cab categories}
+  - {id: TRN-02, title: Premium cab categories, check: premium_cab_screen}
   - {id: AIR-01, title: Class of air travel, check: air_class_permitted}
-  - {id: AIR-02, title: Advance booking}
+  - {id: AIR-02, title: Advance booking, check: advance_booking_screen}
   - {id: GST-01, title: GSTIN on invoices}
   - {id: GST-02, title: Blocked input tax credit}
   - {id: GST-03, title: Hotel rooms at or below the review threshold}

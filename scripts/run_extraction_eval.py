@@ -22,7 +22,12 @@ def main() -> int:
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-cache", action="store_true")
+    ap.add_argument("--rescore", metavar="TAG", help="re-score the latest raw results for TAG (no API calls), e.g. dev_sample200_sonnet-5")
     a = ap.parse_args()
+    if a.rescore:
+        md = H.rescore_latest(a.rescore)
+        print(md.read_text(encoding="utf-8"))
+        return 0
 
     items = H.load_items("dev")
     if a.limit:

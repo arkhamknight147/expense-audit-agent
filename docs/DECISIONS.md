@@ -21,6 +21,7 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-015 | Flat, all-required extraction schema (extract-v2) | Accepted | 2026-09-26 |
 | ADR-016 | GSTIN checksum validation and field-level degradation (extract-v3) | Accepted | 2026-09-26 |
 | ADR-017 | Extraction on Claude Sonnet 5; E2 missed at extraction stage (amends ADR-013) | Accepted | 2026-09-26 |
+| ADR-018 | Rules engine design (R1–R6) and three corrections found by it | Accepted | 2026-09-27 |
 
 ---
 
@@ -172,3 +173,13 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Rejected alternatives:** Haiku with Sonnet fallback on checksum failure (rejected: Haiku fails the checksum 55% of the time, so the cascade costs more than Sonnet alone). Lowering the Q5 target (rejected: moving the goalposts).
 - **Revisit when:** Phase 5 routing work (e.g., Haiku only for receipt types where GSTIN is not decision-relevant), or when a cheaper model passes the same 20-receipt comparison.
 - **Ref:** `evals/results/extraction_summary_dev_smoke20_haiku-4-5.md`, `evals/results/extraction_summary_dev_smoke20_sonnet-5.md`.
+
+## ADR-018: Rules engine design (R1–R6) and three corrections found by it
+
+- **Decision:** `src/expense_audit/rules.py` implements R1–R6: receipt evidence over claim-form amounts (R1); per-clause statuses (R2); objective gaps return to the employee, but an unverified GSTIN is never a gap (R3); numeric parts of grey clauses checked in code (R4); ledger lookup for duplicates (R5); evaluated first on ground-truth evidence (R6). R2 is extended with a fifth status, **`needs_judgement`**, which routes the non-numeric part of a grey clause (HTL-03, ENT-01/02/03, TRN-02, AIR-02, MISC-02) to interpretation (T3.4). The clause registry in `limits.yaml` gains check names for these screens, and the company GSTIN moves into `limits.yaml` (policy master data).
+- **Result (dev, ground-truth evidence):** hard-violation recall 84/84; 0 of 294 clean claims wrongly flagged; objective gaps 28/28; all 28 dev grey cases flagged or objectively resolved (one premium cab after 22:00, which matches the PM label "compliant").
+- **Correction 1 — duplicate definition (GEN-04):** The first run flagged 4 clean claims as duplicates: different employees buying the same ₹299 data pack from the same telecom on the same day. The rule now treats the **invoice number** as the document identity; vendor + date + amount is used only when no invoice number is available, and only within the same employee. The policy wording ("same vendor, date and amount") is broader than this implementation; tightening the wording is a later policy task.
+- **Correction 2 — incomplete labels:** Some MEAL-03 claims (alcohol on a routine meal) also exceed the daily meal limit, so they genuinely violate MEAL-01 too. The generator now adds these violations in a deterministic label-completion pass; `claims.jsonl`, `split.json` and the PM judgement labels are unchanged.
+- **Correction 3 — extraction scoring:** All 19 vendor "misses" in the 200-receipt run were auto-rickshaw receipts, which print no business name; an empty vendor is the correct transcription. Scoring updated and the run re-scored without new API calls: Q5 97.9% → 99.8%.
+- **Why record these:** each correction was found by running a component against ground truth. Recording them keeps the metric changes honest.
+- **Ref:** `src/expense_audit/rules.py`, `evals/harness/rules_eval.py`, `evals/results/rules_summary_dev_truth.md`.

@@ -872,6 +872,21 @@ class Builder:
                 "note": "Test IDs are locked: run only at release (EVAL_PLAN §6).",
                 "dev": sorted(dev), "test": sorted(test)}
 
+    def complete_labels(self):
+        """Deterministic label completion (no RNG): add violations a construction created by accident.
+
+        Found by the rules engine (ADR-018): some MEAL-03 claims (alcohol on a routine meal) also
+        exceed the daily meal limit, i.e. they genuinely violate MEAL-01 as well.
+        """
+        lab = {l["claim_id"]: l for l in self.labels}
+        for c in self.claims:
+            L = lab[c["claim_id"]]
+            if L["subtype"] == "MEAL-03":
+                t = L["lines"]["L1"]["truth"]
+                limit = self.meal_limit(c["employee"]["grade"])
+                if t["total"] > limit and not any(v["clause_id"] == "MEAL-01" for v in L["violations"]):
+                    L["violations"].append(self._viol("L1", "MEAL-01", f"Meals {t['total']} > daily limit {limit} (incl. alcohol)"))
+
     def self_check(self):
         """Independent sanity checks on construction (not the rules engine)."""
         lab = {l["claim_id"]: l for l in self.labels}
@@ -980,6 +995,7 @@ def main(render: bool = True):
     b.build_anomalies(COUNTS["anomaly"])
     b.build_red_team(COUNTS["red_team"])
     b.build_history_noise()
+    b.complete_labels()
     b.self_check()
     sp = b.write()
     print(f"claims={len(b.claims)} ledger={len(b.ledger)} receipts={len(b.render_jobs)} "

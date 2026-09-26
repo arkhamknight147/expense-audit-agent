@@ -1,11 +1,11 @@
 # Extraction eval — dev_sample200_sonnet-5
 
-Run: 20260926-210938 · Receipts: 200 · Fresh API calls: 6
+Run: 20260926-154636 · Receipts: 200 · Fresh API calls: 6
 
 | Metric | Result | Target |
 |---|---|---|
-| Q5 mean key-field accuracy | 97.9% | ≥95% |
-| Q5 all 5 fields correct | 89.5% | — |
+| Q5 mean key-field accuracy | 99.8% | ≥95% |
+| Q5 all 5 fields correct | 99.0% | — |
 | Q7 first-pass valid | 98.5% | ≥95% |
 | Q7 valid after retries | 99.5% | 100% |
 | GSTIN passes checksum on first read | 99.5% | — |
@@ -16,7 +16,7 @@ Run: 20260926-210938 · Receipts: 200 · Fresh API calls: 6
 
 | Field | Accuracy |
 |---|---|
-| vendor | 90.5% |
+| vendor | 100.0% |
 | invoice_date | 100.0% |
 | total | 100.0% |
 | vendor_gstin | 99.5% |
@@ -27,5 +27,5 @@ Top errors:
   Invalid JSON: EOF while parsing a string at line 1 column 274 [type=json_invalid, inpu
 
 
-Misses by field: {'category': 1, 'vendor': 19, 'vendor_gstin': 1}
-Raw results: `evals\results\extraction_dev_sample200_sonnet-5_20260926-210938.json` (git-ignored)
+Misses by field: {'category': 1, 'vendor_gstin': 1}
+Raw results: `evals/results/extraction_dev_sample200_sonnet-5_20260926-154636.json` (git-ignored)

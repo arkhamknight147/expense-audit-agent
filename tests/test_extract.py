@@ -210,3 +210,12 @@ def test_empty_output_every_time_fails_safely_and_is_not_cached(img):
     r = X.extract_receipt(img, client=c)
     assert r["status"] == "failed" and "no_parsed_output" in r["errors"][0]
     assert X.extract_receipt(img, client=c)["status"] == "ok"  # not cached, so a re-run retries
+
+
+def test_auto_rickshaw_empty_vendor_is_correct():
+    from evals.harness.extraction import score_fields
+    exp = {"vendor": "Auto-rickshaw", "invoice_date": "2026-11-09", "total": 120.0, "vendor_gstin": None, "category": "local_transport"}
+    assert score_fields(exp, {"vendor_name": None, "invoice_date": "2026-11-09", "total": 120.0,
+                              "vendor_gstin": None, "category": "local_transport"})["vendor"]
+    assert not score_fields(exp, {"vendor_name": "Aishwarya Pillai", "invoice_date": "2026-11-09", "total": 120.0,
+                                  "vendor_gstin": None, "category": "local_transport"})["vendor"]

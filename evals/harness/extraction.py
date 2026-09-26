@@ -31,8 +31,11 @@ def score_fields(expected: dict, receipt: dict | None) -> dict[str, bool]:
     ev, xv = _norm(expected.get("vendor")), _norm(receipt.get("vendor_name"))
     exp_cat = CATEGORY_MAP.get(expected.get("category"), expected.get("category"))
     exp_total, got_total = expected.get("total"), receipt.get("total")
+    # Auto-rickshaw receipts print no business name ("Auto-rickshaw Receipt" is a document title),
+    # so an empty vendor is the correct transcription (scoring correction, ADR-018).
+    no_business_name = ev == _norm("Auto-rickshaw")
     return {
-        "vendor": bool(ev and xv and (ev == xv or ev in xv or xv in ev)),
+        "vendor": (not xv) if no_business_name and not xv else bool(ev and xv and (ev == xv or ev in xv or xv in ev)),
         "invoice_date": receipt.get("invoice_date") == expected.get("invoice_date"),
         "total": exp_total is not None and got_total is not None and abs(float(got_total) - float(exp_total)) <= 0.01,
         "vendor_gstin": (_norm(receipt.get("vendor_gstin")) == _norm(expected.get("vendor_gstin"))),
@@ -170,3 +173,17 @@ def oracle_extract(items: list[dict]) -> Callable[[str], dict]:
                             "vendor_gstin": e["vendor_gstin"],
                             "category": CATEGORY_MAP.get(e["category"], e["category"]), "other_text": []}}
     return fn
+
+
+def rescore_latest(tag: str, usd_inr: float = 88.0) -> Path:
+    """Re-score the most recent raw results for `tag` with the current scoring (no API calls)."""
+    raws = sorted(RESULTS.glob(f"extraction_{tag}_*.json"))
+    if not raws:
+        raise FileNotFoundError(f"no raw results for tag {tag}")
+    data = json.loads(raws[-1].read_text(encoding="utf-8"))
+    rows = data["rows"]
+    for r in rows:
+        r["scores"] = score_fields(r["expected"], r["result"].get("receipt"))
+    summary = summarise(rows, usd_inr=usd_inr)
+    _, md = write_outputs(rows, summary, tag)
+    return md
