@@ -15,6 +15,7 @@ DB_PATH = ROOT / "data" / "expense_audit.db"
 
 AUTO_APPROVE_CAP = 5000          # G5, ADR-004
 POST_AUDIT_SAMPLE_RATE = 0.05    # G6, ADR-004
+AUTONOMY_MODE = os.getenv("AUTONOMY_MODE", "auto")  # shadow | assisted | auto (D5, ADR-006/021)
 
 EXTRACT_MODEL = os.getenv("EXTRACT_MODEL", "claude-sonnet-5")  # ADR-017
 INTERPRET_MODEL = os.getenv("INTERPRET_MODEL", "claude-sonnet-5")

@@ -12,6 +12,10 @@ venv/
 
 # Generated data (regenerated from seed; see EVAL_PLAN / ADR G4)
 data/generated/
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
 evals/results/*.json
 evals/results/*.jsonl
 evals/results/cache/

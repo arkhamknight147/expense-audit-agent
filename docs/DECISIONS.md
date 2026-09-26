@@ -24,6 +24,8 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-018 | Rules engine design (R1–R6) and three corrections found by it | Accepted | 2026-09-27 |
 | ADR-019 | Anomaly checks (N1–N5) | Accepted | 2026-09-27 |
 | ADR-020 | Clause interpretation (I1–I5); unanimous 'compliant' may auto-approve (I4b) | Accepted | 2026-09-27 |
+| ADR-021 | Decision gates, LangGraph flow and audit log (D1–D6) | Accepted | 2026-09-27 |
+| ADR-022 | Keep interpretation conservative; do not add PM interpretation notes to the policy (G2) | Accepted | 2026-09-27 |
 
 ---
 
@@ -200,3 +202,18 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Risk accepted:** the model can be confidently wrong; this is measured as "false auto-approvals" on the judgement slice (I5), which feeds Q1.
 - **Plumbing check:** a dry run with an always-"compliant" fake model shows the eval catching 10 false auto-approvals on the 28 dev grey cases, i.e. the harness detects exactly the failure mode I4(b) risks.
 - **Ref:** `src/expense_audit/interpret.py`, `evals/harness/interpretation_eval.py`, `tests/test_interpret.py`.
+
+## ADR-021: Decision gates, LangGraph flow and audit log (D1–D6)
+
+- **Decision:** (D1) `decide.py` applies the autonomy policy in a fixed order: cannot-evaluate → rule failure → anomaly → gap (return) → grey clause not unanimously compliant → over cap → random 5% audit (deterministic hash of claim ID) → auto-approve; it also sets ITC tags (A9). (D2) `graph.py` wires extract → rules → anomaly → interpret → decide → [human_review] → finalize in LangGraph; escalations pause with `interrupt()` and resume with `Command(resume=…)`; checkpoints in SQLite survive restarts (verified). (D3) `store.py` is an append-only, hash-chained audit log; the app has no update/delete path and `verify_chain` detects edits made outside it (tested). (D4) Auditor actions approve / reject / partial_approve / return, each with a required reason code; only humans reject or partially approve. (D5) `AUTONOMY_MODE` = shadow | assisted | auto; shadow and assisted route every claim to a human, shadow hides the agent's recommendation. (D6) `scripts/run_claim.py` runs one claim end to end in the terminal, with the PM acting as auditor, until the Streamlit UI (Phase 6).
+- **Why:** The whole autonomy policy is readable in one ordered function; every decision and human action is traceable and tamper-evident.
+- **Ref:** `src/expense_audit/decide.py`, `graph.py`, `store.py`, `tests/test_decide_graph.py`.
+
+## ADR-022: Keep interpretation conservative (G2)
+
+- **Evidence (T3.4 run, 28 dev grey claims, ground-truth evidence):** 0 false auto-approvals; citations 30/30 valid; but 23/30 verdicts "unclear" and only 7/28 verdicts matching the PM label (PM labels: 0 "unclear").
+- **Diagnosis:** The PM labels applied seven PM-written interpretation rules (ADR-011) that are not part of the policy the agent reads. The model is correctly reporting that the policy text alone does not settle these cases: a policy-clarity gap, not a model failure.
+- **Decision (PM, option G2):** Do not add the interpretation rules to the policy. Accept that nearly all grey-clause claims go to a human reviewer, with the model's rationale and a suggested question for the employee.
+- **Consequences:** Safety over automation on grey cases. E1 (clean claims auto-cleared) is unaffected because grey clauses only arise on judgement cases, but the escalation rate on grey claims stays high, which raises human review cost on that slice. Q3/Q4 agreement on the judgement slice will look low, and the EVAL_REPORT must explain why.
+- **Rejected alternative (G1):** Publish interpretation notes under each grey clause and re-run (~₹47). Rejected for now; it remains the obvious next step if grey-claim review volume becomes a cost problem.
+- **Revisit when:** Grey-claim escalations materially drive total cost per claim (E3), or Finance wants to publish interpretation guidance anyway.
