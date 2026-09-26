@@ -1,6 +1,6 @@
 # Extraction eval — dryrun
 
-Run: 20260926-081620 · Receipts: 710 · Fresh API calls: 710
+Run: 20260926-142226 · Receipts: 710 · Fresh API calls: 710
 
 | Metric | Result | Target |
 |---|---|---|
@@ -21,4 +21,4 @@ Run: 20260926-081620 · Receipts: 710 · Fresh API calls: 710
 | category | 100.0% |
 
 Misses by field: {}
-Raw results: `evals/results/extraction_dryrun_20260926-081620.json` (git-ignored)
+Raw results: `evals\results\extraction_dryrun_20260926-142226.json` (git-ignored)

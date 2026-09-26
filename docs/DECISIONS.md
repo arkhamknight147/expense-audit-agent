@@ -18,6 +18,7 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-012 | System architecture (A1–A10) | Accepted; A3 superseded by ADR-013 | 2026-09-26 |
 | ADR-013 | Agent models: Anthropic Claude (supersedes ADR-012 A3) | Accepted | 2026-09-26 |
 | ADR-014 | Secret management: three layers of protection | Accepted | 2026-09-26 |
+| ADR-015 | Flat, all-required extraction schema (extract-v2) | Accepted | 2026-09-26 |
 
 ---
 
@@ -134,3 +135,11 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Rejected alternative:** Rely on `.gitignore` alone. Rejected because it does not catch keys pasted into source files.
 - **Revisit when:** The project adds CI secrets (use GitHub Actions encrypted secrets) or deploys the demo (use Streamlit Cloud secrets).
 - **Ref:** `.gitignore`, `.githooks/pre-commit`, `scripts/check_secrets.py`.
+
+## ADR-015: Flat, all-required extraction schema (extract-v2)
+
+- **Decision:** Split the extraction contract into a wire schema sent to the model (`ReceiptWire`: flat, every field required, no nullable/union types, empty string = not printed, numbers transcribed as text) and a typed domain model (`ExtractedReceipt`) produced by our own parser.
+- **Why:** The first smoke run (extract-v1, 20 receipts) failed 20/20 with `400: compiled grammar is too large`. The v1 schema had 31 union-type parameters; Anthropic's strict schemas allow at most 16 union and 24 optional parameters, and nested optionals compound grammar size. The fail-safe design worked: every receipt was marked `failed` (→ escalate), nothing was cached, and no tokens were billed.
+- **Consequence:** Number and date parsing moves into our code, where failures become retryable validation errors. A unit test now asserts the wire schema has 0 optional and 0 union parameters, so this cannot regress silently. Prompt version bumped to `extract-v2`, which invalidates the cache.
+- **Rejected alternative:** Keep nested optional objects and disable strict structured outputs. Rejected: it loses the guaranteed-schema layer (X3).
+- **Ref:** `src/expense_audit/schemas.py`, `src/expense_audit/extract.py`, `tests/test_extract.py`.

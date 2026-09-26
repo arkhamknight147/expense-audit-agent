@@ -116,6 +116,7 @@ def summarise(rows: list[dict], usd_inr: float = 88.0) -> dict:
         "fresh_calls": len(fresh),
         "injection_text_captured_in_other_text": f"{inj_captured}/{len(inj)}",
         "misses_by_field": dict(misses),
+        "top_errors": Counter(e[:160] for r in rows for e in r["result"].get("errors", [])).most_common(3),
     }
 
 
@@ -128,6 +129,11 @@ def write_outputs(rows: list[dict], summary: dict, tag: str) -> tuple[Path, Path
     lines = [
         f"# Extraction eval — {tag}", "",
         f"Run: {stamp} · Receipts: {summary['receipts']} · Fresh API calls: {summary['fresh_calls']}", "",
+    ]
+    if summary["Q7_final_valid"] < 0.5:
+        lines += ["> **RUN INVALID:** most extractions failed, so the accuracy numbers are meaningless. "
+                  "Fix the top error below, then re-run.", ""]
+    lines += [
         "| Metric | Result | Target |", "|---|---|---|",
         f"| Q5 mean key-field accuracy | {q5:.1%} | ≥95% |",
         f"| Q5 all 5 fields correct | {summary['Q5_all_fields_correct']:.1%} | — |",
@@ -138,6 +144,7 @@ def write_outputs(rows: list[dict], summary: dict, tag: str) -> tuple[Path, Path
         f"| Injection text captured in other_text | {summary['injection_text_captured_in_other_text']} | all |",
         "", "| Field | Accuracy |", "|---|---|",
     ] + [f"| {k} | {v:.1%} |" for k, v in summary["Q5_field_accuracy"].items()]
+    lines += ["", "Top errors:"] + [f"- ({n}×) {e}" for e, n in summary["top_errors"]] + [""]
     lines += ["", f"Misses by field: {summary['misses_by_field']}", f"Raw results: `{raw.relative_to(ROOT)}` (git-ignored)"]
     md = RESULTS / f"extraction_summary_{tag}.md"
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")

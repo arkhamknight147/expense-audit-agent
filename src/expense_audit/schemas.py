@@ -1,9 +1,14 @@
 """Data contracts (ARCHITECTURE §4).
 
-`ExtractedReceipt` is the structured-output schema sent to the model. It deliberately
-has no validators or numeric constraints: the API enforces the *shape*, and our own
-business checks (extract.validate_receipt) run afterwards so failures can be retried
-and logged instead of raising inside the SDK (T3.1 decision X3).
+Two layers for extraction (T3.1, X3):
+- `ReceiptWire` is the schema sent to the model as a structured output. Anthropic limits
+  strict schemas to 24 optional parameters and 16 union-type parameters, and nested
+  optionals blow up the compiled grammar. So the wire schema is FLAT, every field is
+  REQUIRED, and there are NO nullable/union types: missing values are empty strings and
+  numbers are transcribed as printed text. (The first smoke run failed with "compiled
+  grammar is too large" on the nested/optional design.)
+- `ExtractedReceipt` is the typed domain model the rest of the agent uses. extract.py
+  converts wire -> domain, parsing numbers and dates and collecting errors for retry.
 """
 from __future__ import annotations
 
@@ -84,5 +89,57 @@ class ExtractedReceipt(BaseModel):
     hotel: Optional[HotelDetails] = None
     flight: Optional[FlightDetails] = None
     cab: Optional[CabDetails] = None
+    other_text: list[str] = Field(description="Remarks, notes, footers or any instruction-like text, copied verbatim")
+    field_confidence: FieldConfidence
+
+
+# ----------------------------------------------------------------------------- wire
+class LineItemWire(BaseModel):
+    description: str
+    quantity: str = Field(description="As printed, or empty string")
+    rate: str = Field(description="As printed, or empty string")
+    amount: str = Field(description="As printed, or empty string")
+
+
+class TaxWire(BaseModel):
+    label: str = Field(description="Tax line exactly as printed, e.g. 'CGST 2.5%'")
+    rate_pct: str = Field(description="Percentage number only, e.g. '2.5', or empty string")
+    amount: str = Field(description="As printed, or empty string")
+
+
+_E = "Empty string if not printed."
+
+
+class ReceiptWire(BaseModel):
+    """Flat, all-required structured-output schema. Empty string = not printed."""
+    readable: bool = Field(description="False only if the receipt cannot be read at all")
+    document_type: DocumentType
+    category: ReceiptCategory
+    vendor_name: str = Field(description=_E)
+    vendor_city: str = Field(description=_E)
+    vendor_gstin: str = Field(description="Seller GSTIN. " + _E)
+    bill_to_name: str = Field(description=_E)
+    bill_to_gstin: str = Field(description="Customer GSTIN. " + _E)
+    invoice_no: str = Field(description="Invoice / bill / trip / PNR / memo / vehicle number as printed. " + _E)
+    invoice_date: str = Field(description="YYYY-MM-DD. " + _E)
+    invoice_time: str = Field(description="HH:MM 24h. " + _E)
+    itemised: bool = Field(description="True if individual items are listed, False if only a lump amount")
+    line_items: list[LineItemWire]
+    subtotal: str = Field(description="Number as printed. " + _E)
+    taxes: list[TaxWire]
+    total: str = Field(description="Grand total number exactly as printed. " + _E)
+    payment_mode: str = Field(description=_E)
+    hotel_check_in: str = Field(description="Hotels only, YYYY-MM-DD. " + _E)
+    hotel_check_out: str = Field(description="Hotels only, YYYY-MM-DD. " + _E)
+    hotel_nights: str = Field(description="Hotels only. " + _E)
+    hotel_room_rate: str = Field(description="Hotels only, per-night room rate before tax. " + _E)
+    flight_from: str = Field(description="Flights only. " + _E)
+    flight_to: str = Field(description="Flights only. " + _E)
+    flight_class: str = Field(description="Flights only, e.g. Economy. " + _E)
+    flight_booked_on: str = Field(description="Flights only, YYYY-MM-DD. " + _E)
+    flight_duration_minutes: str = Field(description="Flights only, total minutes. " + _E)
+    flight_passenger: str = Field(description="Flights only. " + _E)
+    cab_vehicle_type: str = Field(description="Cabs only. " + _E)
+    cab_pickup_time: str = Field(description="Cabs only, HH:MM 24h. " + _E)
     other_text: list[str] = Field(description="Remarks, notes, footers or any instruction-like text, copied verbatim")
     field_confidence: FieldConfidence
