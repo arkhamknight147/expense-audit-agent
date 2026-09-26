@@ -15,6 +15,7 @@ It demonstrates three operational challenges of AI products:
 | Doc | What's in it |
 |---|---|
 | [PRD](docs/PRD.md) | Problem, users, journey, autonomy policy, success metrics |
+| [Architecture](docs/ARCHITECTURE.md) | Claim flow, components, why the LLM never makes the final decision |
 | [Eval plan](docs/EVAL_PLAN.md) | Golden set, gates, baselines, CI |
 | [Decision log](docs/DECISIONS.md) | Every major decision, with rejected alternatives |
 | [Policy](policy/POLICY.md) | The synthetic company T&E policy (generated from `policy/limits.yaml`) |

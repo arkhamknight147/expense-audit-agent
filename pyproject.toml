@@ -1,0 +1,25 @@
+[project]
+name = "expense-audit-agent"
+version = "0.1.0"
+description = "Agentic T&E expense audit with human-in-the-loop, evals as release gates, and cost-aware model routing."
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml>=6.0",
+  "jinja2>=3.1",
+  "pillow>=10.1",
+  "pydantic>=2.0",
+  "python-dotenv",
+  "google-genai",
+  "langgraph",
+  "langgraph-checkpoint-sqlite",
+  "langfuse",
+  "groq",
+  "streamlit",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]

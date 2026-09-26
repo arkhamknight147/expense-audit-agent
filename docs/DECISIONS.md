@@ -14,6 +14,8 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-008 | Eval plan design | Accepted | 2026-09-23 |
 | ADR-009 | Policy corpus design | Accepted | 2026-09-23 |
 | ADR-010 | Golden set generation | Accepted | 2026-09-24 |
+| ADR-011 | LLM-assisted judgement labelling (supersedes ADR-008 V3 method) | Accepted | 2026-09-26 |
+| ADR-012 | System architecture (A1–A10) | Accepted | 2026-09-26 |
 
 ---
 
@@ -96,3 +98,20 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Rejected alternative:** Commit the images. Rejected because they are ~40 MB and fully reproducible from the seed.
 - **Revisit when:** A real-world receipt source with a clear licence becomes available.
 - **Ref:** `evals/generator/`, `scripts/generate_golden_set.py`, `evals/golden/MANIFEST.md`.
+
+## ADR-011: LLM-assisted judgement labelling
+
+- **Decision:** The 40 grey cases were labelled by an LLM (Gemini Pro) applying PM-written interpretation rules, with low-confidence cases flagged for PM review. The PM reviewed and owns the final labels. This supersedes the "PM hand-labels" method in ADR-008 (V3); the 10% PM re-label check still applies.
+- **Why:** Time to ship. Hand-labelling was estimated at ~90 minutes; the PM-rules approach keeps the interpretation human-owned while cutting effort.
+- **Risk accepted:** Labels may carry LLM bias, and agreement between the agent and these labels partly measures model-vs-model agreement. Mitigations: PM-written rules, PM review, the Q6 judge uses a different model family from the agent, and the method is disclosed in EVAL_PLAN §4.
+- **Rejected alternative:** Fully manual labelling. Rejected on time.
+- **Revisit when:** The 10% re-label shows more than 1 in 4 disagreements, or Q3/Q4 results look suspiciously high on the judgement slice.
+- **Ref:** `evals/labelling/judgement_cases.csv`, `scripts/validate_judgement_labels.py`, EVAL_PLAN §4.
+
+## ADR-012: System architecture
+
+- **Decision:** (A1) LangGraph for orchestration, using `interrupt()` for human review. (A2) The LLM produces signals only; deterministic gate code makes every decision, and the agent has no approve or pay tool. (A3) Gemini Flash-Lite for receipt extraction; Gemini Flash (3 samples) for grey-clause interpretation only. (A4) Q6 judge on a different model family (GPT-OSS-120B via Groq). (A5) Clause lookup by ID from the `limits.yaml` registry; no vector database in the MVP. (A6) Pure-Python rules engine with pytest. (A7) SQLite for queue, audit log and checkpoints. (A8) Langfuse Hobby for tracing, cost and latency. (A9) Streamlit on Streamlit Community Cloud. (A10) Untrusted input kept as data, injection treated as an anomaly signal, code gates as backstop.
+- **Why:** A2 means a fooled model cannot bypass the rule, cap or anomaly gates. A5: the policy is 26 clauses (~3k tokens), so a vector search adds latency and a failure mode with no recall gain. A9: community reports (June–Aug 2026) say new free Hugging Face Docker/Streamlit Spaces require PRO.
+- **Rejected alternatives:** LLM makes the final decision (rejected: unsafe, untestable). Vector DB retrieval (deferred: optional later experiment against the same evals). Hugging Face Spaces (rejected: hosting cost).
+- **Revisit when:** The policy corpus grows beyond what fits comfortably in context (reconsider A5), or free-tier limits block eval runs (reconsider A3/A4 providers).
+- **Ref:** `docs/ARCHITECTURE.md`.
