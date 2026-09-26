@@ -82,7 +82,11 @@ def run(items: list[dict], extract_fn: Callable[[str], dict], concurrency: int =
         futs = {ex.submit(extract_fn, it["image"]): it for it in items}
         for i, fut in enumerate(as_completed(futs), 1):
             it = futs[fut]
-            res = fut.result()
+            try:
+                res = fut.result()
+            except Exception as exc:  # one bad receipt must never kill the whole run
+                res = {"status": "failed", "receipt": None, "errors": [f"harness_exception: {type(exc).__name__}: {str(exc)[:200]}"],
+                       "flags": [], "first_pass_valid": False, "cost_usd": 0.0, "latency_s": 0.0, "cached": False}
             rows.append({**it, "result": res, "scores": score_fields(it["expected"], res.get("receipt"))})
             if i % 25 == 0 or i == len(items):
                 print(f"  {i}/{len(items)} done")

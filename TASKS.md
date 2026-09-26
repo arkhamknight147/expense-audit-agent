@@ -2,7 +2,7 @@
 
 ## Current status
 - **Phase:** 2 complete → starting Phase 3 (MVP build)
-- **Next task:** T3.1 smoke run on extract-v3 → (Sonnet comparison if Q5 < 95%) → full dev run → T3.2 Rules engine
+- **Next task:** T3.1 close-out: 200-receipt dev run on Sonnet (PM) → T3.2 Rules engine
 - **Known issues:** HTL-03 judgement cases check out on Sunday while some justifications mention Monday (generator artefact, accepted as is). CORD extraction slice not yet added (G8).
 
 ## Phase 0 — Framing ✅
@@ -16,7 +16,7 @@
 - [x] 1.2 Golden set: 630 claims, 1,012 receipts (ADR-010)
 - [x] 1.2b Judgement labels (ADR-011)
 - [ ] 1.2c PM 10% re-label check (due ~2026-10-03)
-- [ ] 1.2d CORD extraction slice (~50 receipts)
+- [x] ~~1.2d CORD extraction slice~~ — cut (2026-09-26): Sonnet smoke results make it low value; saves a step
 
 ## Phase 2 — Architecture ✅
 - [x] 2.1 ARCHITECTURE.md, ADR-012

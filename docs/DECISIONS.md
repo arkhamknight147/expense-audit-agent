@@ -20,6 +20,7 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-014 | Secret management: three layers of protection | Accepted | 2026-09-26 |
 | ADR-015 | Flat, all-required extraction schema (extract-v2) | Accepted | 2026-09-26 |
 | ADR-016 | GSTIN checksum validation and field-level degradation (extract-v3) | Accepted | 2026-09-26 |
+| ADR-017 | Extraction on Claude Sonnet 5; E2 missed at extraction stage (amends ADR-013) | Accepted | 2026-09-26 |
 
 ---
 
@@ -152,3 +153,22 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Why:** Degrade one field, not the whole claim. The checksum is the domain's own error detector and catches almost all single-character misreads that the format check alone lets through.
 - **Metric change:** Q7 "first-pass valid" now counts hard schema/format errors only; GSTIN checksum results are reported separately.
 - **Ref:** `src/expense_audit/gstin.py`, `src/expense_audit/extract.py`, `evals/generator/build.py`.
+
+## ADR-017: Extraction on Claude Sonnet 5; E2 missed at the extraction stage
+
+- **Evidence (same 20 dev receipts, extract-v3):**
+
+  | Metric | Haiku 4.5 | Sonnet 5 |
+  |---|---|---|
+  | Q5 mean key-field accuracy | 88.0% | 97.0% |
+  | All 5 fields correct | 40% | 85% |
+  | GSTIN checksum pass, first read | 45% | 100% |
+  | Q7 valid after retries | 100% | 100% |
+  | Cost per receipt | ₹0.80 | ₹1.44 |
+  | Latency p95 | 9.4s | 18.8s |
+
+- **Decision:** Use Claude Sonnet 5 for receipt extraction (amends ADR-013, which chose Haiku 4.5). Mark E2 (≤₹1.00 LLM cost per claim) as **missed at the extraction stage** (≈ ₹2.3/claim at ~1.6 receipts per claim) and revisit it in Phase 5.
+- **Why:** Haiku fails a specific, measured requirement: reading GSTINs reliably enough for invoice (HTL-02) and ITC checks. Paying ~1.8× per receipt for +9 points of Q5 is justified because GSTIN errors propagate into wrong returns and tax tags. Unit economics still hold: ~₹2–3 of LLM cost vs ~₹30 of auditor time per escalated claim (PRD §4.1).
+- **Rejected alternatives:** Haiku with Sonnet fallback on checksum failure (rejected: Haiku fails the checksum 55% of the time, so the cascade costs more than Sonnet alone). Lowering the Q5 target (rejected: moving the goalposts).
+- **Revisit when:** Phase 5 routing work (e.g., Haiku only for receipt types where GSTIN is not decision-relevant), or when a cheaper model passes the same 20-receipt comparison.
+- **Ref:** `evals/results/extraction_summary_dev_smoke20_haiku-4-5.md`, `evals/results/extraction_summary_dev_smoke20_sonnet-5.md`.

@@ -27,6 +27,7 @@ from .schemas import (CabDetails, ExtractedReceipt, FlightDetails, HotelDetails,
 PROMPT_VERSION = "extract-v3"  # v3: GSTIN structure + checksum retry, vendor/laundry rules (ADR-016)
 MAX_RETRIES = 2
 MAX_TOKENS = 2048
+MAX_TOKENS_RETRY = 4096  # used after a truncated/empty output
 CACHE_DIR = ROOT / "evals" / "results" / "cache" / "extract"
 FAILURE_LOG = ROOT / "evals" / "results" / "extraction_failures.jsonl"
 
@@ -198,6 +199,7 @@ def extract_receipt(path: str | Path, *, client: Any = None, model: str = EXTRAC
     history: list[list[str]] = []
     gstin_issues: list[str] = []
     gstin_retry_used = False
+    max_tokens = MAX_TOKENS
     usage = {"input_tokens": 0, "output_tokens": 0}
     receipt: ExtractedReceipt | None = None
     errors: list[str] = []
@@ -207,16 +209,25 @@ def extract_receipt(path: str | Path, *, client: Any = None, model: str = EXTRAC
     for attempt in range(1, MAX_RETRIES + 2):
         try:
             resp = client.messages.parse(
-                model=model, max_tokens=MAX_TOKENS, system=SYSTEM_PROMPT,
+                model=model, max_tokens=max_tokens, system=SYSTEM_PROMPT,
                 messages=messages, output_format=ReceiptWire,
             )
         except Exception as exc:  # API/parse failure counts as a failed attempt
             errors = [f"api_or_parse_error: {type(exc).__name__}: {str(exc)[:300]}"]
             history.append(errors)
+            if "EOF while parsing" in str(exc):
+                max_tokens = MAX_TOKENS_RETRY  # truncated JSON: give the retry more room
             continue
         usage["input_tokens"] += getattr(resp.usage, "input_tokens", 0) or 0
         usage["output_tokens"] += getattr(resp.usage, "output_tokens", 0) or 0
         wire = resp.parsed_output
+        stop_reason = getattr(resp, "stop_reason", None)
+        if wire is None:  # e.g. truncated at max_tokens or a refusal: retry, never crash
+            errors = [f"no_parsed_output: stop_reason={stop_reason}"]
+            history.append(errors)
+            if stop_reason == "max_tokens":
+                max_tokens = MAX_TOKENS_RETRY
+            continue
         receipt, parse_errors = to_domain(wire)
         errors, flags, gstin_issues = validate_receipt(receipt)
         errors = parse_errors + errors
@@ -260,7 +271,7 @@ def extract_receipt(path: str | Path, *, client: Any = None, model: str = EXTRAC
         FAILURE_LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(FAILURE_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps({k: result[k] for k in ("image", "model", "prompt_version", "attempts", "error_history")}) + "\n")
-    api_failed = any(e.startswith("api_or_parse_error") for e in errors)
+    api_failed = any(e.startswith(("api_or_parse_error", "no_parsed_output")) for e in errors)
     if use_cache and not api_failed:  # never cache transient API failures
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         cache_file.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")

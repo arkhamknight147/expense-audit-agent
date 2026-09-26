@@ -29,7 +29,7 @@ def main() -> int:
         items = H.sample(items, a.limit)
     from expense_audit.config import EXTRACT_MODEL
     model_tag = EXTRACT_MODEL.replace("claude-", "").split("-2025")[0]
-    tag = "dryrun" if a.dry_run else (f"dev_smoke{a.limit}_{model_tag}" if a.limit else f"dev_{model_tag}")
+    tag = "dryrun" if a.dry_run else ((f"dev_smoke{a.limit}" if a.limit <= 20 else f"dev_sample{a.limit}") + f"_{model_tag}" if a.limit else f"dev_{model_tag}")
     print(f"Extraction eval: {len(items)} dev receipts ({tag})")
 
     if a.dry_run:

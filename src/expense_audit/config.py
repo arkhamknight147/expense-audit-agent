@@ -16,7 +16,7 @@ DB_PATH = ROOT / "data" / "expense_audit.db"
 AUTO_APPROVE_CAP = 5000          # G5, ADR-004
 POST_AUDIT_SAMPLE_RATE = 0.05    # G6, ADR-004
 
-EXTRACT_MODEL = os.getenv("EXTRACT_MODEL", "claude-haiku-4-5-20251001")
+EXTRACT_MODEL = os.getenv("EXTRACT_MODEL", "claude-sonnet-5")  # ADR-017
 INTERPRET_MODEL = os.getenv("INTERPRET_MODEL", "claude-sonnet-5")
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "openai/gpt-oss-120b")
 INTERPRET_SAMPLES = int(os.getenv("INTERPRET_SAMPLES", "3"))

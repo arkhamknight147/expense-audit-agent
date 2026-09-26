@@ -27,6 +27,11 @@ def make_receipt(**over) -> ReceiptWire:
     return ReceiptWire(**base)
 
 
+class NoneOutput:
+    """Simulates a response whose structured output could not be parsed (e.g. truncated)."""
+    stop_reason = "max_tokens"
+
+
 class FakeClient:
     def __init__(self, outputs):
         self.outputs = list(outputs)
@@ -38,7 +43,12 @@ class FakeClient:
         out = self.outputs.pop(0)
         if isinstance(out, Exception):
             raise out
-        return SimpleNamespace(parsed_output=out, usage=SimpleNamespace(input_tokens=1500, output_tokens=400))
+        self.max_tokens_seen = kw.get("max_tokens")
+        if out is NoneOutput:
+            return SimpleNamespace(parsed_output=None, stop_reason="max_tokens",
+                                   usage=SimpleNamespace(input_tokens=1500, output_tokens=2048))
+        return SimpleNamespace(parsed_output=out, stop_reason="end_turn",
+                               usage=SimpleNamespace(input_tokens=1500, output_tokens=400))
 
 
 @pytest.fixture
@@ -54,7 +64,8 @@ def test_valid_first_pass(img):
     c = FakeClient([make_receipt()])
     r = X.extract_receipt(img, client=c)
     assert r["status"] == "ok" and r["attempts"] == 1 and r["first_pass_valid"]
-    assert r["cost_usd"] == pytest.approx(1500 / 1e6 * 1 + 400 / 1e6 * 5)
+    from expense_audit.config import usd_cost
+    assert r["cost_usd"] == pytest.approx(usd_cost(X.EXTRACT_MODEL, 1500, 400))  # priced for the configured model
 
 
 def test_retry_then_success(img):
@@ -186,3 +197,16 @@ def test_to_domain_parses_printed_numbers(img):
 def test_unparseable_number_triggers_retry(img):
     c = FakeClient([make_receipt(total="three hundred"), make_receipt()])
     assert X.extract_receipt(img, client=c)["attempts"] == 2
+
+
+def test_empty_parsed_output_is_retried_with_more_tokens(img):
+    c = FakeClient([NoneOutput, make_receipt()])
+    r = X.extract_receipt(img, client=c)
+    assert r["status"] == "ok" and r["attempts"] == 2 and c.max_tokens_seen == X.MAX_TOKENS_RETRY
+
+
+def test_empty_output_every_time_fails_safely_and_is_not_cached(img):
+    c = FakeClient([NoneOutput] * 3 + [make_receipt()])
+    r = X.extract_receipt(img, client=c)
+    assert r["status"] == "failed" and "no_parsed_output" in r["errors"][0]
+    assert X.extract_receipt(img, client=c)["status"] == "ok"  # not cached, so a re-run retries

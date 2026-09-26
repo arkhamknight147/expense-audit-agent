@@ -20,7 +20,7 @@
 Claim (form + receipt images)
   │
   ▼
-[1] EXTRACT ─────── per receipt: image → Pydantic schema (Claude Haiku 4.5), ≤2 retries,
+[1] EXTRACT ─────── per receipt: image → Pydantic schema (Claude Sonnet 5, ADR-017), ≤2 retries,
   │                 validation failures logged; low-confidence fields flagged
   ▼
 [2] HARD RULES ──── code, one function per `check` in limits.yaml (HTL-01, MEAL-01, GEN-05 …)
@@ -49,7 +49,7 @@ Step 3 and step 6 run on every claim, whatever the LLM says, so a fooled LLM can
 | # | Component | Technology | Notes |
 |---|---|---|---|
 | A1 | Orchestration | LangGraph `StateGraph` | Human review via `interrupt()` + checkpointer; resume with `Command(resume=…)`. Pre-interrupt side effects must be idempotent (the node re-runs on resume). |
-| A3 | Extraction model | Claude Haiku 4.5 (vision + structured outputs) | Structured output validated again by Pydantic (ADR-013) |
+| A3 | Extraction model | Claude Sonnet 5 (vision + structured outputs) | Haiku 4.5 failed the GSTIN requirement (ADR-017); output validated again by our parser + GSTIN checksum |
 | A3 | Interpretation model | Claude Sonnet 5, 3 samples | Only for grey/ambiguous lines (cost control) (ADR-013) |
 | A4 | Eval judge (Q6) | GPT-OSS-120B via Groq (free tier) | Different model family from the agent (Claude) and from the labelling LLM (Gemini) |
 | A5 | Policy lookup | `limits.yaml` clause registry + `POLICY.md` parsed by clause ID | No embeddings; citation validated against real clause text |

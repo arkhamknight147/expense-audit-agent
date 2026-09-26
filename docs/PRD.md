@@ -258,7 +258,7 @@ Shadow mode (the agent suggests, humans decide, outcomes are compared) → Assis
 | # | Metric | Target |
 |---|---|---|
 | E1 | Clean claims cleared with no human involvement | ≥80% |
-| E2 | LLM cost per claim | ≤₹1.00 average; routing ≥30% cheaper than an all-Sonnet baseline, with Q1–Q6 within 1 percentage point |
+| E2 | LLM cost per claim | ≤₹1.00 average; routing ≥30% cheaper than an all-Sonnet baseline, with Q1–Q6 within 1 percentage point. **Status: missed at the extraction stage** (Sonnet extraction ≈ ₹1.44/receipt ≈ ₹2.3/claim, ADR-017); target revisited in Phase 5. |
 | E3 | Total cost per claim (LLM + human minutes × assumed rate) | Reported against an all-human-review baseline |
 | E4 | p95 latency per claim | ≤20 seconds |
 
