@@ -60,6 +60,15 @@ class LineEvidence:
     cab_vehicle: Optional[str] = None
     cab_time: Optional[str] = None
     attendees: list[str] = field(default_factory=list)
+    # Used by anomaly checks (T3.3)
+    claimed_amount: Optional[float] = None
+    vendor_gstin: Optional[str] = None
+    vendor_gstin_valid: Optional[bool] = None
+    vendor_city: Optional[str] = None
+    subtotal: Optional[float] = None
+    taxes: list[dict] = field(default_factory=list)  # {"label", "rate_pct", "amount"}
+    other_text: list[str] = field(default_factory=list)
+    justification: Optional[str] = None
 
 
 @dataclass
@@ -86,7 +95,8 @@ def evidence_from_extraction(claim_line: dict, extraction: Optional[dict]) -> Li
     """Build evidence from a claim line and its extraction result (extract.extract_receipt)."""
     ev = LineEvidence(line_id=claim_line["line_id"], claim_category=claim_line["category"],
                       has_receipt=bool(claim_line.get("receipt")), self_declared=bool(claim_line.get("self_declared")),
-                      attendees=list(claim_line.get("attendees") or []))
+                      attendees=list(claim_line.get("attendees") or []),
+                      claimed_amount=claim_line.get("amount_claimed"), justification=claim_line.get("justification"))
     if not ev.has_receipt:
         ev.total = claim_line.get("amount_claimed")
         ev.invoice_date = claim_line.get("expense_date")
@@ -116,6 +126,10 @@ def evidence_from_extraction(claim_line: dict, extraction: Optional[dict]) -> Li
     ev.flight_duration_min = flight.get("duration_minutes")
     ev.booked_on = flight.get("booked_on")
     ev.cab_vehicle, ev.cab_time = cab.get("vehicle_type"), cab.get("pickup_time") or r.get("invoice_time")
+    ev.vendor_gstin, ev.vendor_gstin_valid = r.get("vendor_gstin"), r.get("vendor_gstin_valid")
+    ev.vendor_city, ev.subtotal = r.get("vendor_city"), r.get("subtotal")
+    ev.taxes = [dict(t) for t in r.get("taxes") or []]
+    ev.other_text = list(r.get("other_text") or [])
     return ev
 
 

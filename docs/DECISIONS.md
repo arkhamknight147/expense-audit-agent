@@ -22,6 +22,7 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-016 | GSTIN checksum validation and field-level degradation (extract-v3) | Accepted | 2026-09-26 |
 | ADR-017 | Extraction on Claude Sonnet 5; E2 missed at extraction stage (amends ADR-013) | Accepted | 2026-09-26 |
 | ADR-018 | Rules engine design (R1–R6) and three corrections found by it | Accepted | 2026-09-27 |
+| ADR-019 | Anomaly checks (N1–N5) | Accepted | 2026-09-27 |
 
 ---
 
@@ -183,3 +184,10 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Correction 3 — extraction scoring:** All 19 vendor "misses" in the 200-receipt run were auto-rickshaw receipts, which print no business name; an empty vendor is the correct transcription. Scoring updated and the run re-scored without new API calls: Q5 97.9% → 99.8%.
 - **Why record these:** each correction was found by running a component against ground truth. Recording them keeps the metric changes honest.
 - **Ref:** `src/expense_audit/rules.py`, `evals/harness/rules_eval.py`, `evals/results/rules_summary_dev_truth.md`.
+
+## ADR-019: Anomaly checks (N1–N5)
+
+- **Decision:** `src/expense_audit/anomaly.py` runs deterministic checks on every claim: claimed amount vs receipt total, printed arithmetic, tax above its printed rate, vendor GSTIN state vs vendor city (reference table `policy/reference/city_state_codes.yaml`; unknown cities and unverified GSTINs are skipped, never flagged), cross-employee duplicate (from the GEN-04 result), receipt date outside the trip (±1 day), and a regex screen for instruction-like text in receipt remarks and employee-written fields. Any anomaly → escalate; labelled "anomaly", auditor-only (ADR-003). No image forensics (N3): a patched total is caught by the arithmetic check.
+- **Result (dev, ground-truth evidence):** 0/294 false alarms on clean claims; 0/28 injection false alarms on legitimate grey-case justifications (e.g. "approved verbally by manager"); cross-employee duplicates 4/4; GSTIN-state mismatches 3/3; justification-channel injections 7/7. Tampered totals, tax-rate and receipt-text injections need real extraction (`run_anomaly_eval.py --real`).
+- **Known limitation, disclosed:** the injection patterns were written after seeing the red-team set, so Q9 on that set is optimistic. Phase 5 (5.2) adds a held-out, paraphrased red-team set written without looking at the detector. The code gates remain the backstop: every red-team claim also carries a hard violation.
+- **Ref:** `src/expense_audit/anomaly.py`, `evals/harness/anomaly_eval.py`, `tests/test_anomaly.py`.

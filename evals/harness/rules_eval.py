@@ -17,11 +17,16 @@ RESULTS = ROOT / "evals" / "results"
 CAT = {"client_entertainment": "meal", "team_meal": "meal"}
 
 
-def evidence_from_truth(claim_line: dict, truth: dict) -> LineEvidence:
-    """Oracle evidence built from ground truth (what a perfect extractor would return)."""
+def evidence_from_truth(claim_line: dict, truth: dict, destination: str | None = None) -> LineEvidence:
+    """Oracle evidence built from ground truth (what a perfect extractor would return).
+
+    Ground truth has no subtotal/tax lines or receipt remarks, so arithmetic, tax-rate and
+    receipt-text injection anomalies can only be evaluated on real extraction output.
+    """
     ev = LineEvidence(line_id=claim_line["line_id"], claim_category=claim_line["category"],
                       has_receipt=bool(claim_line.get("receipt")), self_declared=bool(claim_line.get("self_declared")),
-                      attendees=list(claim_line.get("attendees") or []))
+                      attendees=list(claim_line.get("attendees") or []),
+                      claimed_amount=claim_line.get("amount_claimed"), justification=claim_line.get("justification"))
     if not ev.has_receipt:
         ev.total, ev.invoice_date, ev.payment_mode = claim_line["amount_claimed"], claim_line["expense_date"], claim_line["payment_mode"]
         return ev
@@ -43,6 +48,11 @@ def evidence_from_truth(claim_line: dict, truth: dict) -> LineEvidence:
         ev.booked_on = truth["booked_on"]
     if truth["category"] == "local_transport":
         ev.cab_vehicle, ev.cab_time = truth.get("vehicle"), truth.get("time")
+    ev.vendor_gstin = truth.get("vendor_gstin")
+    ev.vendor_gstin_valid = True if ev.vendor_gstin else None
+    # Generator convention: airline invoices are issued from Delhi, telecom from Mumbai,
+    # everything else in the trip destination.
+    ev.vendor_city = {"flight": "Delhi", "connectivity": "Mumbai"}.get(truth["category"], destination)
     return ev
 
 
@@ -59,7 +69,7 @@ def run_truth(split: str = "dev") -> tuple[dict, list[dict]]:
     rows = []
     for c in claims:
         lab = labels[c["claim_id"]]
-        evs = [evidence_from_truth(li, lab["lines"][li["line_id"]]["truth"]) for li in c["line_items"]]
+        evs = [evidence_from_truth(li, lab["lines"][li["line_id"]]["truth"], c["trip"]["destination"]) for li in c["line_items"]]
         res = evaluate(c, evs, ledger)
         rows.append({"claim_id": c["claim_id"], "slice": lab["slice"], "subtype": lab["subtype"], "label": lab,
                      "results": [r.as_dict() for r in res]})
