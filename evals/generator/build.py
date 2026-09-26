@@ -11,7 +11,7 @@ Outputs (paths relative to repo root):
   evals/golden/split.json            stratified dev/test split (test IDs locked)
   evals/golden/MANIFEST.md           counts per slice/subtype
   evals/labelling/judgement_cases.csv  grey cases for PM labelling (labels blank)
-  data/generated/receipts/*.jpg      receipt images (git-ignored; regenerate with the seed)
+  data/generated/receipts_v2/*.jpg   receipt images (git-ignored; regenerate with the seed)
 """
 from __future__ import annotations
 
@@ -28,9 +28,17 @@ import yaml
 from . import data as D
 from .render import render_receipt
 
+try:
+    from expense_audit.gstin import check_char, is_valid as gstin_is_valid
+except ImportError:  # allow running with only the repo root on sys.path
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+    from expense_audit.gstin import check_char, is_valid as gstin_is_valid
+
 ROOT = Path(__file__).resolve().parents[2]
 SEED = 20261001
 CAP = 5000  # G5 auto-approve cap (ADR-004)
+RECEIPT_DIR = "receipts_v2"  # v2: checksum-valid GSTINs (ADR-016). Bump when rendered content changes.
 
 COUNTS = {
     "clean_under_cap": 400,
@@ -113,10 +121,20 @@ class Builder:
                 return d
 
     def gstin(self, state: str) -> str:
+        """Fictitious but checksum-valid GSTIN (ADR-016).
+
+        The PAN's 4th character is forced outside the real PAN entity codes, so these can
+        never be real GSTINs. RNG calls are kept identical to v1 so every other generated
+        value (claims, amounts, split) stays the same.
+        """
         code = D.STATE_CODES[state]
-        pan = "ZZ" + "".join(self.rng.choices(string.ascii_uppercase, k=3)) + \
-              f"{self.rng.randint(0, 9999):04d}" + self.rng.choice(string.ascii_uppercase)
-        return f"{code}{pan}1Z{self.rng.choice(string.ascii_uppercase + string.digits)}"
+        l1, l2, l3 = self.rng.choices(string.ascii_uppercase, k=3)
+        if l2 in D.REAL_PAN_ENTITY_CODES:
+            l2 = D.FAKE_PAN_ENTITY_CODES[string.ascii_uppercase.index(l2) % len(D.FAKE_PAN_ENTITY_CODES)]
+        pan = "ZZ" + l1 + l2 + l3 + f"{self.rng.randint(0, 9999):04d}" + self.rng.choice(string.ascii_uppercase)
+        self.rng.choice(string.ascii_uppercase + string.digits)  # v1 drew a random check char; keep the draw
+        first14 = f"{code}{pan}1Z"
+        return first14 + check_char(first14)
 
     def inv_no(self, prefix: str) -> str:
         while True:
@@ -395,7 +413,7 @@ class Builder:
             cl = {"line_id": lid, **ln["claim"], "currency": "INR"}
             cl.setdefault("self_declared", False)
             if ln["spec"] is not None:
-                rel = f"data/generated/receipts/{cid}_{lid}.jpg"
+                rel = f"data/generated/{RECEIPT_DIR}/{cid}_{lid}.jpg"
                 cl["receipt"] = rel
                 self.render_jobs.append((ln["spec"], ROOT / rel))
             else:
@@ -857,6 +875,12 @@ class Builder:
     def self_check(self):
         """Independent sanity checks on construction (not the rules engine)."""
         lab = {l["claim_id"]: l for l in self.labels}
+        assert gstin_is_valid(D.COMPANY_GSTIN)
+        for L in self.labels:
+            for ln in L["lines"].values():
+                g = ln["truth"].get("vendor_gstin")
+                if g and L["subtype"] != "gstin_state_mismatch":
+                    assert gstin_is_valid(g), (L["claim_id"], g)
         for c in self.claims:
             L = lab[c["claim_id"]]
             if L["slice"] == "clean_under_cap":
@@ -903,7 +927,16 @@ class Builder:
 
         lab_dir = ROOT / "evals" / "labelling"
         lab_dir.mkdir(parents=True, exist_ok=True)
-        with open(lab_dir / "judgement_cases.csv", "w", encoding="utf-8-sig", newline="") as f:
+        csv_path = lab_dir / "judgement_cases.csv"
+        label_cols = ["clause_verdict", "expected_decision", "violated_clause_ids", "reasoning", "relabel_clause_verdict"]
+        if csv_path.exists():  # never overwrite PM labels: carry them over by claim_id
+            existing = {r["claim_id"]: r for r in csv.DictReader(open(csv_path, encoding="utf-8-sig", newline=""))}
+            for row in self.judgement_rows:
+                old = existing.get(row["claim_id"])
+                if old:
+                    for col in label_cols:
+                        row[col] = old.get(col, "")
+        with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
             w = csv.DictWriter(f, fieldnames=list(self.judgement_rows[0].keys()))
             w.writeheader()
             w.writerows(self.judgement_rows)

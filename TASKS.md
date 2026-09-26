@@ -2,7 +2,7 @@
 
 ## Current status
 - **Phase:** 2 complete → starting Phase 3 (MVP build)
-- **Next task:** T3.1 smoke run (PM runs locally) → full dev run → T3.2 Rules engine
+- **Next task:** T3.1 smoke run on extract-v3 → (Sonnet comparison if Q5 < 95%) → full dev run → T3.2 Rules engine
 - **Known issues:** HTL-03 judgement cases check out on Sunday while some justifications mention Monday (generator artefact, accepted as is). CORD extraction slice not yet added (G8).
 
 ## Phase 0 — Framing ✅

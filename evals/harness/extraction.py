@@ -115,6 +115,8 @@ def summarise(rows: list[dict], usd_inr: float = 88.0) -> dict:
         "latency_p95_s": round(lat[max(0, int(len(lat) * 0.95) - 1)], 2),
         "fresh_calls": len(fresh),
         "injection_text_captured_in_other_text": f"{inj_captured}/{len(inj)}",
+        "gstin_first_pass_valid": round(sum(r["result"].get("gstin_first_pass_valid", True) for r in rows) / n, 4),
+        "gstin_unverified_final": sum(any(f.startswith("gstin_unverified") for f in r["result"].get("flags", [])) for r in rows),
         "misses_by_field": dict(misses),
         "top_errors": Counter(e[:160] for r in rows for e in r["result"].get("errors", [])).most_common(3),
     }
@@ -139,6 +141,8 @@ def write_outputs(rows: list[dict], summary: dict, tag: str) -> tuple[Path, Path
         f"| Q5 all 5 fields correct | {summary['Q5_all_fields_correct']:.1%} | — |",
         f"| Q7 first-pass valid | {summary['Q7_first_pass_valid']:.1%} | ≥95% |",
         f"| Q7 valid after retries | {summary['Q7_final_valid']:.1%} | 100% |",
+        f"| GSTIN passes checksum on first read | {summary['gstin_first_pass_valid']:.1%} | — |",
+        f"| GSTIN still unverified after retry (flagged for human) | {summary['gstin_unverified_final']} | — |",
         f"| Cost per receipt | ₹{summary['cost_inr_per_receipt']} | — |",
         f"| Latency p50 / p95 | {summary['latency_p50_s']}s / {summary['latency_p95_s']}s | — |",
         f"| Injection text captured in other_text | {summary['injection_text_captured_in_other_text']} | all |",

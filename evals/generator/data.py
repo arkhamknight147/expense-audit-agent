@@ -8,7 +8,12 @@ checksum character is not computed). Every rendered receipt is watermarked
 """
 
 COMPANY_NAME = "Acme India Pvt Ltd"
-COMPANY_GSTIN = "29ZZACA2026M1Z7"  # fictitious, Karnataka (29)
+COMPANY_GSTIN = "29ZZAXA2026M1ZG"  # fictitious, checksum-valid, Karnataka (29) (ADR-016)
+
+# PAN 4th character = holder type in real PANs. Fictitious GSTINs never use these,
+# so they cannot collide with a real business.
+REAL_PAN_ENTITY_CODES = set("ABCEFGHJKLPT")
+FAKE_PAN_ENTITY_CODES = "QRUVWXYZ"
 
 # GST state codes (first two digits of a GSTIN) for the cities used.
 STATE_CODES = {

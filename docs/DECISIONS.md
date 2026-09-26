@@ -19,6 +19,7 @@ Permanent product and architecture decisions. Each record says what was decided,
 | ADR-013 | Agent models: Anthropic Claude (supersedes ADR-012 A3) | Accepted | 2026-09-26 |
 | ADR-014 | Secret management: three layers of protection | Accepted | 2026-09-26 |
 | ADR-015 | Flat, all-required extraction schema (extract-v2) | Accepted | 2026-09-26 |
+| ADR-016 | GSTIN checksum validation and field-level degradation (extract-v3) | Accepted | 2026-09-26 |
 
 ---
 
@@ -143,3 +144,11 @@ Permanent product and architecture decisions. Each record says what was decided,
 - **Consequence:** Number and date parsing moves into our code, where failures become retryable validation errors. A unit test now asserts the wire schema has 0 optional and 0 union parameters, so this cannot regress silently. Prompt version bumped to `extract-v2`, which invalidates the cache.
 - **Rejected alternative:** Keep nested optional objects and disable strict structured outputs. Rejected: it loses the guaranteed-schema layer (X3).
 - **Ref:** `src/expense_audit/schemas.py`, `src/expense_audit/extract.py`, `tests/test_extract.py`.
+
+## ADR-016: GSTIN checksum validation and field-level degradation (extract-v3)
+
+- **Context:** Smoke run on extract-v2 (20 dev receipts): date and total 100%, but vendor GSTIN 50%. All 10 misses were character-level misreads (Z/2, Q/0, I/1, W/M, 4/A, extra digits). Because a bad GSTIN failed the whole receipt, Q7 fell to 50%, p95 latency rose to 35s and cost to ₹1.03/receipt.
+- **Decision:** (F1) Synthetic GSTINs now carry a valid GSTN mod-36 check character; the PAN's 4th character is forced outside real PAN holder-type codes so they cannot collide with real businesses. Data regenerated from the same seed: claims and split are byte-identical, only GSTIN strings in labels changed; PM judgement labels preserved; images moved to `data/generated/receipts_v2/`. (F2) The extractor validates GSTIN format + checksum; a failure gets ONE targeted retry, after which the GSTIN is kept and flagged `gstin_unverified` instead of failing the receipt. Downstream, an unverified GSTIN routes the ITC/invoice checks to a human. (F3) The prompt states the 15-character GSTIN structure so position disambiguates look-alikes. (F4) Prompt clarifies vendor = business at the top (never the customer) and dry cleaning = laundry. (F5) If Q5 is still below 95%, run a Sonnet extraction smoke for comparison.
+- **Why:** Degrade one field, not the whole claim. The checksum is the domain's own error detector and catches almost all single-character misreads that the format check alone lets through.
+- **Metric change:** Q7 "first-pass valid" now counts hard schema/format errors only; GSTIN checksum results are reported separately.
+- **Ref:** `src/expense_audit/gstin.py`, `src/expense_audit/extract.py`, `evals/generator/build.py`.

@@ -91,6 +91,9 @@ class ExtractedReceipt(BaseModel):
     cab: Optional[CabDetails] = None
     other_text: list[str] = Field(description="Remarks, notes, footers or any instruction-like text, copied verbatim")
     field_confidence: FieldConfidence
+    # Set by our validator, never by the model: GSTIN passes format + checksum (ADR-016).
+    vendor_gstin_valid: Optional[bool] = None
+    bill_to_gstin_valid: Optional[bool] = None
 
 
 # ----------------------------------------------------------------------------- wire

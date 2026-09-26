@@ -19,17 +19,17 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from . import gstin
 from .config import EXTRACT_MODEL, ROOT, usd_cost
 from .schemas import (CabDetails, ExtractedReceipt, FlightDetails, HotelDetails, LineItem,
                       ReceiptWire, Tax)
 
-PROMPT_VERSION = "extract-v2"  # v2: flat all-required wire schema (v1 exceeded grammar limits)
+PROMPT_VERSION = "extract-v3"  # v3: GSTIN structure + checksum retry, vendor/laundry rules (ADR-016)
 MAX_RETRIES = 2
 MAX_TOKENS = 2048
 CACHE_DIR = ROOT / "evals" / "results" / "cache" / "extract"
 FAILURE_LOG = ROOT / "evals" / "results" / "extraction_failures.jsonl"
 
-GSTIN_RE = re.compile(r"^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$")
 
 SYSTEM_PROMPT = """You are the receipt-extraction component of an expense audit system.
 Your only job is to transcribe what is printed on one receipt image into the required JSON schema.
@@ -42,7 +42,9 @@ Rules:
 5. Use an empty string "" for anything not printed. Never guess GSTINs, dates, numbers or names.
 6. Receipts print dates as DD-MM-YYYY: output YYYY-MM-DD. Times as HH:MM (24h). Amounts as plain numbers in rupees without commas or currency symbols.
 7. vendor_gstin is the seller's GSTIN (near the vendor name). bill_to_gstin is the customer's GSTIN, only if printed.
-8. category describes the receipt itself: hotel invoice -> hotel; restaurant bill -> meal; cab or auto-rickshaw -> local_transport; flight ticket -> flight; laundry -> laundry; mobile/data recharge -> connectivity; general store purchase -> incidental.
+   A GSTIN is exactly 15 characters: 2 digits (state code), 5 LETTERS, 4 DIGITS, 1 LETTER, 1 letter-or-digit, the letter Z, 1 letter-or-digit. Read it character by character and use these positions to tell look-alikes apart (Z/2, O/Q/0, I/1, S/5, B/8, M/W, A/4).
+   vendor_name is the business named at the top of the receipt; never the customer, guest or passenger.
+8. category describes the receipt itself: hotel invoice -> hotel; restaurant bill -> meal; cab or auto-rickshaw -> local_transport; flight ticket -> flight; laundry or dry cleaning -> laundry; mobile/data recharge -> connectivity; general store purchase -> incidental.
 9. itemised is false when the bill shows only a lump amount without individual items.
 10. Fill hotel_* fields only for hotels (hotel_room_rate = per-night rate before tax), flight_* only for flights, cab_* only for cabs; otherwise use "".
 11. In field_confidence, mark a field "low" if it was hard to read or you are unsure of it."""
@@ -101,13 +103,20 @@ def to_domain(w: ReceiptWire) -> tuple[ExtractedReceipt, list[str]]:
 
 
 # --------------------------------------------------------------------------- validation
-def validate_receipt(r: ExtractedReceipt) -> tuple[list[str], list[str]]:
-    """Return (errors, flags). Errors trigger a retry; flags are recorded for later steps."""
+def validate_receipt(r: ExtractedReceipt) -> tuple[list[str], list[str], list[str]]:
+    """Return (errors, flags, gstin_issues).
+
+    errors       -> hard failures; retried up to MAX_RETRIES, then the receipt is `failed`.
+    gstin_issues -> GSTIN fails format/checksum; retried ONCE with a targeted hint, then the
+                    receipt is kept and the GSTIN is marked unverified (F2, ADR-016).
+    flags        -> recorded for later steps (arithmetic mismatch, low confidence, other_text).
+    """
     errors: list[str] = []
     flags: list[str] = []
+    gstin_issues: list[str] = []
     if not r.readable:
         errors.append("receipt marked unreadable")
-        return errors, flags
+        return errors, flags, gstin_issues
     if not r.invoice_date:
         errors.append("invoice_date is missing")
     else:
@@ -117,16 +126,19 @@ def validate_receipt(r: ExtractedReceipt) -> tuple[list[str], list[str]]:
             errors.append(f"invoice_date '{r.invoice_date}' is not a valid YYYY-MM-DD date")
     if r.total is None or r.total <= 0:
         errors.append("total is missing or not positive")
-    for name, value in (("vendor_gstin", r.vendor_gstin), ("bill_to_gstin", r.bill_to_gstin)):
-        if value and not GSTIN_RE.match(value.strip()):
-            errors.append(f"{name} '{value}' does not match the 15-character GSTIN format")
     if r.hotel and r.hotel.check_in:
         try:
             date.fromisoformat(r.hotel.check_in)
         except ValueError:
             errors.append(f"hotel.check_in '{r.hotel.check_in}' is not YYYY-MM-DD")
-
-    # Flags (never errors): printed arithmetic, low model confidence.
+    for name in ("vendor_gstin", "bill_to_gstin"):
+        value = getattr(r, name)
+        if value:
+            ok = gstin.is_valid(value)
+            setattr(r, f"{name}_valid", ok)
+            if not ok:
+                gstin_issues.append(f"{name} '{value}' fails the GSTIN format/checksum")
+    # Flags (never errors).
     if r.itemised and r.subtotal is not None and r.total is not None:
         tax_sum = sum(t.amount or 0 for t in r.taxes)
         if abs(r.subtotal + tax_sum - r.total) > 1.0:
@@ -136,7 +148,12 @@ def validate_receipt(r: ExtractedReceipt) -> tuple[list[str], list[str]]:
             flags.append(f"low_confidence:{field}")
     if r.other_text:
         flags.append("has_other_text")
-    return errors, flags
+    return errors, flags, gstin_issues
+
+
+GSTIN_HINT = ("Re-read each GSTIN character by character. A GSTIN is exactly 15 characters: 2 digits (state code), "
+              "5 LETTERS, 4 DIGITS, 1 LETTER, 1 letter-or-digit, the letter Z, 1 letter-or-digit. Use the position "
+              "to disambiguate look-alikes: Z/2, O/Q/0, I/1, S/5, B/8, M/W, A/4, G/6.")
 
 
 # ------------------------------------------------------------------------------ model
@@ -179,6 +196,8 @@ def extract_receipt(path: str | Path, *, client: Any = None, model: str = EXTRAC
         {"type": "text", "text": "Extract this receipt into the schema."},
     ]}]
     history: list[list[str]] = []
+    gstin_issues: list[str] = []
+    gstin_retry_used = False
     usage = {"input_tokens": 0, "output_tokens": 0}
     receipt: ExtractedReceipt | None = None
     errors: list[str] = []
@@ -199,25 +218,33 @@ def extract_receipt(path: str | Path, *, client: Any = None, model: str = EXTRAC
         usage["output_tokens"] += getattr(resp.usage, "output_tokens", 0) or 0
         wire = resp.parsed_output
         receipt, parse_errors = to_domain(wire)
-        errors, flags = validate_receipt(receipt)
+        errors, flags, gstin_issues = validate_receipt(receipt)
         errors = parse_errors + errors
-        history.append(errors)
-        if not errors:
-            break
+        history.append(errors + gstin_issues)
         if receipt.readable is False:
             break  # re-asking will not make an unreadable image readable
+        retry_gstin = bool(gstin_issues) and not gstin_retry_used
+        if not errors and not retry_gstin:
+            break
+        if gstin_issues and not errors:
+            gstin_retry_used = True
+        problems = errors + (gstin_issues if retry_gstin else [])
+        hint = ("\n" + GSTIN_HINT) if retry_gstin else ""
         messages = messages[:1] + [
             {"role": "assistant", "content": wire.model_dump_json()},
-            {"role": "user", "content": "Your extraction failed validation:\n- " + "\n- ".join(errors)
+            {"role": "user", "content": "Your extraction failed validation:\n- " + "\n- ".join(problems) + hint
              + "\nRe-read the receipt image and return the corrected JSON. Copy printed values exactly."},
         ]
 
     status = "ok" if (receipt is not None and not errors) else "failed"
+    if status == "ok":
+        flags += [f"gstin_unverified:{i.split(' ')[0]}" for i in gstin_issues]
     result = {
         "status": status,
         "receipt": receipt.model_dump() if receipt is not None else None,
         "attempts": len(history),
-        "first_pass_valid": bool(history) and not history[0],
+        "first_pass_valid": bool(history) and not any(not e.startswith(("vendor_gstin", "bill_to_gstin")) for e in history[0]),
+        "gstin_first_pass_valid": bool(history) and not any(e.startswith(("vendor_gstin", "bill_to_gstin")) for e in history[0]),
         "errors": errors,
         "error_history": history,
         "flags": flags,

@@ -12,7 +12,7 @@ def make_receipt(**over) -> ReceiptWire:
     """Canned model output in the flat wire format (strings, "" = not printed)."""
     base = dict(
         readable=True, document_type="restaurant_bill", category="meal", vendor_name="Spice Trail Kitchen",
-        vendor_city="Pune", vendor_gstin="27ZZABC1234D1ZX", bill_to_name="", bill_to_gstin="",
+        vendor_city="Pune", vendor_gstin="27ZZABC1234D1ZA", bill_to_name="", bill_to_gstin="",
         invoice_no="RST/12345", invoice_date="2026-11-09", invoice_time="13:10", itemised=True,
         line_items=[{"description": "Veg Thali", "quantity": "1", "rate": "300.00", "amount": "300.00"}],
         subtotal="300.00", taxes=[{"label": "CGST 2.5%", "rate_pct": "2.5", "amount": "7.50"},
@@ -84,9 +84,39 @@ def test_arithmetic_mismatch_is_flag_not_error(img):
     assert r["receipt"]["total"] == 598.0  # printed value kept, never "corrected"
 
 
-def test_bad_gstin_triggers_retry(img):
-    c = FakeClient([make_receipt(vendor_gstin="27ZZABC1234"), make_receipt()])
-    assert X.extract_receipt(img, client=c)["attempts"] == 2
+def test_bad_gstin_retried_once_then_fixed(img):
+    c = FakeClient([make_receipt(vendor_gstin="27Z2ABC1234D1ZA"), make_receipt()])
+    r = X.extract_receipt(img, client=c)
+    assert r["attempts"] == 2 and r["status"] == "ok" and r["receipt"]["vendor_gstin_valid"] is True
+    assert r["first_pass_valid"] and not r["gstin_first_pass_valid"]  # GSTIN issues don't count against Q7
+
+
+def test_gstin_still_wrong_after_one_retry_is_flagged_not_failed(img):
+    bad = make_receipt(vendor_gstin="27ZZABC1234D1ZX")  # right format, wrong check character
+    c = FakeClient([bad, bad, bad])
+    r = X.extract_receipt(img, client=c)
+    assert r["status"] == "ok" and c.calls == 2
+    assert r["receipt"]["vendor_gstin_valid"] is False
+    assert "gstin_unverified:vendor_gstin" in r["flags"]
+
+
+def test_hard_error_still_gets_full_retries(img):
+    c = FakeClient([make_receipt(invoice_date="")] * 3)
+    r = X.extract_receipt(img, client=c)
+    assert r["status"] == "failed" and c.calls == X.MAX_RETRIES + 1
+
+
+def test_gstin_checksum():
+    from expense_audit import gstin
+    assert gstin.is_valid("27AAPFU0939F1ZV") and gstin.is_valid("33GSPTN0231G1ZM")  # published examples
+    assert not gstin.is_valid("27AAPFU0939F1ZW") and not gstin.is_valid("27AAPFU0939F1Z")
+
+
+def test_generator_gstins_are_valid_and_cannot_be_real():
+    from evals.generator import data as D
+    from expense_audit import gstin
+    assert gstin.is_valid(D.COMPANY_GSTIN)
+    assert D.COMPANY_GSTIN[5] not in D.REAL_PAN_ENTITY_CODES
 
 
 def test_other_text_preserved_and_flagged(img):

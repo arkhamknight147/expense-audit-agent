@@ -1,6 +1,6 @@
 # Extraction eval — dryrun
 
-Run: 20260926-142226 · Receipts: 710 · Fresh API calls: 710
+Run: 20260926-094207 · Receipts: 710 · Fresh API calls: 710
 
 | Metric | Result | Target |
 |---|---|---|
@@ -8,6 +8,8 @@ Run: 20260926-142226 · Receipts: 710 · Fresh API calls: 710
 | Q5 all 5 fields correct | 100.0% | — |
 | Q7 first-pass valid | 100.0% | ≥95% |
 | Q7 valid after retries | 100.0% | 100% |
+| GSTIN passes checksum on first read | 100.0% | — |
+| GSTIN still unverified after retry (flagged for human) | 0 | — |
 | Cost per receipt | ₹0.0 | — |
 | Latency p50 / p95 | 0.0s / 0.0s | — |
 | Injection text captured in other_text | 0/14 | all |
@@ -20,5 +22,8 @@ Run: 20260926-142226 · Receipts: 710 · Fresh API calls: 710
 | vendor_gstin | 100.0% |
 | category | 100.0% |
 
+Top errors:
+
+
 Misses by field: {}
-Raw results: `evals\results\extraction_dryrun_20260926-142226.json` (git-ignored)
+Raw results: `evals/results/extraction_dryrun_20260926-094207.json` (git-ignored)
